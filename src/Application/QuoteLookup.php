@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gybra\EixPricing\Application;
 
+use Brick\Math\BigDecimal;
 use DateTimeImmutable;
 use Gybra\EixPricing\Domain\Isin;
 use Gybra\EixPricing\Domain\Quote;
@@ -28,9 +29,9 @@ final readonly class QuoteLookup
 
         return new Quote(
             (string) $row->isin,
-            (string) $row->bid,
-            (string) $row->ask,
-            (string) $row->price,
+            (string) BigDecimal::of((string) $row->bid)->toScale(6),
+            (string) BigDecimal::of((string) $row->ask)->toScale(6),
+            (string) BigDecimal::of((string) $row->price)->toScale(7),
             new DateTimeImmutable((string) $row->quoted_at),
         );
     }
