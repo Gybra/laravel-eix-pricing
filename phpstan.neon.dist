@@ -4,4 +4,5 @@ includes:
 parameters:
     level: 8
     paths:
+        - database/migrations
         - src
