@@ -45,6 +45,22 @@ The package keeps one current quote per ISIN using bounded conditional
 upserts. See [`docs/persistence.md`](docs/persistence.md) for ordering and
 transaction semantics.
 
+## Importing
+
+Run an import manually with:
+
+```bash
+php artisan eix:import
+```
+
+The package schedules the same command every 15 minutes by default with
+overlap protection. Set `EIX_SCHEDULE_ENABLED=false` to disable it. Enable
+`EIX_SCHEDULE_ON_ONE_SERVER=true` only when every application instance shares
+a lock-capable cache store.
+
+The host application must run Laravel's scheduler. No queue worker or Redis is
+required.
+
 ## Source contract
 
 The verified EIX discovery, download and CSV formats are documented in
