@@ -11,7 +11,7 @@ it('merges package configuration defaults', function (): void {
         ->and(config('eix-pricing.import.batch_size'))->toBe(1000)
         ->and(config('eix-pricing.storage.retention_days'))->toBeNull()
         ->and(config('eix-pricing.import.lock_name'))->toBe('eix-pricing:import')
-        ->and(config('eix-pricing.import.lock_seconds'))->toBe(7200)
+        ->and(config('eix-pricing.import.lock_seconds'))->toBe(10800)
         ->and(config('eix-pricing.schedule.cron'))->toBe('*/15 * * * *')
         ->and(config('eix-pricing.routes.prefix'))->toBe('api');
 });
