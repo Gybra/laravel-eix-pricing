@@ -8,7 +8,9 @@ use Brick\Math\BigDecimal;
 use DateTimeImmutable;
 use DateTimeZone;
 use Generator;
+use Gybra\EixPricing\Domain\Isin;
 use Gybra\EixPricing\Domain\QuoteRecord;
+use InvalidArgumentException;
 use RuntimeException;
 use UnexpectedValueException;
 
@@ -75,7 +77,9 @@ final class EixCsvParser
         $bidDecimal = $this->decimal($bid, $sourceRow, 'bid');
         $askDecimal = $this->decimal($ask, $sourceRow, 'ask');
 
-        if (! $this->validIsin($isin)) {
+        try {
+            $isin = Isin::from($isin)->value;
+        } catch (InvalidArgumentException) {
             $this->malformed($sourceRow, 'ISIN');
         }
 
@@ -115,28 +119,6 @@ final class EixCsvParser
         }
 
         return BigDecimal::of($value);
-    }
-
-    private function validIsin(string $isin): bool
-    {
-        if (preg_match('/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/', $isin) !== 1) {
-            return false;
-        }
-
-        $expanded = '';
-
-        foreach (str_split($isin) as $character) {
-            $expanded .= ctype_digit($character) ? $character : (string) (ord($character) - 55);
-        }
-
-        $sum = 0;
-
-        foreach (array_reverse(str_split($expanded)) as $position => $digit) {
-            $value = (int) $digit * ($position % 2 === 0 ? 1 : 2);
-            $sum += intdiv($value, 10) + ($value % 10);
-        }
-
-        return $sum % 10 === 0;
     }
 
     private function malformed(int $sourceRow, string $reason): never
