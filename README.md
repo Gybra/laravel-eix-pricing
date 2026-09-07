@@ -5,6 +5,14 @@ the latest quote by ISIN.
 
 > This package is under active development and is not ready for production.
 
+## Architecture
+
+The package discovers the newest EIX source, streams it through local and
+configured transient storage, parses gzip/CSV records lazily, and conditionally
+upserts current quotes in bounded batches. Import metadata and cache locks make
+retries and overlapping scheduler instances safe. The host application only
+provides Laravel, database, cache, filesystem and scheduler infrastructure.
+
 ## Requirements
 
 - PHP 8.4 or newer
@@ -25,12 +33,35 @@ php artisan vendor:publish --tag=eix-pricing-config
 
 ## Configuration
 
-Runtime settings use the `EIX_` environment prefix. They cover the discovery
-and download endpoints, HTTP timeouts and retries, database connection,
-transient storage disk and prefix, import batch size, schedule, routes and
-throttle. Source objects are removed after every import attempt.
-See [`config/eix-pricing.php`](config/eix-pricing.php) for every setting and
-default.
+Runtime settings use the `EIX_` environment prefix. Source objects are removed
+after every import attempt.
+
+| Setting | Default |
+| --- | --- |
+| `EIX_DISCOVERY_URL` | Public EIX pre-trade discovery endpoint |
+| `EIX_DOWNLOAD_URL` | Public EIX source-content endpoint |
+| `EIX_HTTP_CONNECT_TIMEOUT` | `10` seconds |
+| `EIX_HTTP_TIMEOUT` | `30` seconds |
+| `EIX_HTTP_DOWNLOAD_TIMEOUT` | `3600` seconds |
+| `EIX_HTTP_RETRIES` | `3` |
+| `EIX_HTTP_RETRY_DELAY_MS` | `1000` milliseconds |
+| `EIX_DB_CONNECTION` | Laravel default connection |
+| `EIX_STORAGE_DISK` | `local` |
+| `EIX_STORAGE_PREFIX` | `eix` |
+| `EIX_IMPORT_BATCH_SIZE` | `1000` |
+| `EIX_IMPORT_LOCK_STORE` | Laravel default cache store |
+| `EIX_IMPORT_LOCK_NAME` | `eix-pricing:import` |
+| `EIX_IMPORT_LOCK_SECONDS` | `7200` seconds |
+| `EIX_SCHEDULE_ENABLED` | `true` |
+| `EIX_SCHEDULE_CRON` | Every 15 minutes |
+| `EIX_SCHEDULE_OVERLAP_MINUTES` | `180` minutes |
+| `EIX_SCHEDULE_ON_ONE_SERVER` | `false` |
+| `EIX_ROUTES_ENABLED` | `true` |
+| `EIX_ROUTES_PREFIX` | `api` |
+| `EIX_ROUTES_THROTTLE` | `60,1` |
+
+Route middleware is configurable in the published
+[`config/eix-pricing.php`](config/eix-pricing.php).
 
 ## Database
 
@@ -105,6 +136,20 @@ The verified EIX discovery, download and CSV formats are documented in
 provides ISINs but no authoritative ticker mapping, so the initial release is
 ISIN-only.
 
+## Supabase PostgreSQL and Cloudflare R2
+
+Use Laravel's normal PostgreSQL and S3-compatible filesystem configuration.
+See [`docs/deployment.md`](docs/deployment.md) for placeholder-only Supabase
+and R2 examples. R2 objects are transient and the credentials require delete
+permission.
+
+## Large-file troubleshooting
+
+The importer never loads a complete gzip or CSV source into memory. Ensure the
+local temporary volume has enough free space for the compressed source and set
+the download timeout and import lock lifetime above the measured import time.
+See [`docs/troubleshooting.md`](docs/troubleshooting.md).
+
 ## Development
 
 ```bash
@@ -112,7 +157,11 @@ composer install
 composer test
 composer format:check
 composer analyse
+composer audit --locked
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and
+[CHANGELOG.md](CHANGELOG.md) for project policies.
 
 ## License
 
