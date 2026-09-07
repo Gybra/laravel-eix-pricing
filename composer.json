@@ -1,0 +1,53 @@
+{
+    "name": "gybra/laravel-eix-pricing",
+    "description": "Ingest EIX pre-trade data and expose the latest persisted quote in Laravel.",
+    "keywords": [
+        "eix",
+        "laravel",
+        "market-data",
+        "quotes"
+    ],
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "php": "^8.4",
+        "illuminate/support": "^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.11",
+        "laravel/pint": "^1.26",
+        "orchestra/testbench": "^11.2",
+        "pestphp/pest": "^5.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gybra\\EixPricing\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "format": "pint",
+        "format:check": "pint --test",
+        "test": "pest"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Gybra\\EixPricing\\EixPricingServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
