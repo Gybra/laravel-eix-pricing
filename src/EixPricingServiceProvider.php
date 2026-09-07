@@ -19,6 +19,10 @@ final class EixPricingServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(dirname(__DIR__).'/database/migrations');
 
+        if (config('eix-pricing.routes.enabled')) {
+            $this->loadRoutesFrom(dirname(__DIR__).'/routes/api.php');
+        }
+
         $this->publishes([
             dirname(__DIR__).'/config/eix-pricing.php' => config_path('eix-pricing.php'),
         ], 'eix-pricing-config');

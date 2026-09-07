@@ -146,7 +146,7 @@ controller → lookup service → API Resource.
 Target response:
 
 ``` json
-{"data":{"isin":"IE00B3VTMJ91","price":116.3225,"bid":116.309,"ask":116.336,"quoted_at":"2026-09-07T09:41:59.000Z"}}
+{"data":{"isin":"IE00B3VTMJ91","price":116.3225,"bid":116.309,"ask":116.336,"quoted_at":"2026-09-07T09:41:59.000000Z"}}
 ```
 
 Feature-test ISIN 200, exact contract, 404, invalid behavior and
