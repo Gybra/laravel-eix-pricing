@@ -5,6 +5,7 @@ declare(strict_types=1);
 use DateTimeImmutable;
 use Gybra\EixPricing\Domain\QuoteRecord;
 use Gybra\EixPricing\Infrastructure\Persistence\QuoteWriter;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -56,6 +57,15 @@ it('keeps the newest quote across unordered batches and deterministic ties', fun
         quoteRecord('IE000EOFR2K5', '2026-09-07T20:40:00.000Z', 5, '4.500000', '6.500000', '5.5000000'),
     ];
 
+    $batchBindingCounts = [];
+    DB::connection('package_testing')->listen(
+        function (QueryExecuted $query) use (&$batchBindingCounts): void {
+            if (str_contains($query->sql, 'INSERT INTO eix_quotes')) {
+                $batchBindingCounts[] = count($query->bindings);
+            }
+        },
+    );
+
     $written = app(QuoteWriter::class)->write($records, $importId, 1788759600000);
 
     $quotes = DB::connection('package_testing')
@@ -65,6 +75,7 @@ it('keeps the newest quote across unordered batches and deterministic ties', fun
 
     expect($written)->toBe(4)
         ->and($quotes)->toHaveCount(2)
+        ->and($batchBindingCounts)->toBe([18, 9])
         ->and($quotes->first()->isin)->toBe('IE000EOFR2K5')
         ->and($quotes->first()->bid)->toBe(4.5)
         ->and($quotes->first()->source_row)->toBe(5)

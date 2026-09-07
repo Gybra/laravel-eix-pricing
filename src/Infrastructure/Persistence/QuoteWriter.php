@@ -72,6 +72,7 @@ final readonly class QuoteWriter
      */
     private function upsert(Connection $connection, array $records, int $importId, int $sourceTimestamp): void
     {
+        $records = $this->latestPerIsin($records);
         $placeholders = implode(', ', array_fill(
             0,
             count($records),
@@ -95,5 +96,27 @@ final readonly class QuoteWriter
         }
 
         $connection->statement(sprintf(self::INSERT, $placeholders), $bindings);
+    }
+
+    /**
+     * @param  list<QuoteRecord>  $records
+     * @return list<QuoteRecord>
+     */
+    private function latestPerIsin(array $records): array
+    {
+        $latest = [];
+
+        foreach ($records as $record) {
+            $current = $latest[$record->isin] ?? null;
+
+            if ($current === null
+                || $record->quotedAt > $current->quotedAt
+                || ($record->quotedAt == $current->quotedAt && $record->sourceRow > $current->sourceRow)
+            ) {
+                $latest[$record->isin] = $record;
+            }
+        }
+
+        return array_values($latest);
     }
 }
