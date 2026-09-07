@@ -75,6 +75,29 @@ The endpoint is public and throttled. Invalid ISINs return 422 and missing
 quotes return 404. Route enablement, prefix, middleware and throttle are
 configurable.
 
+## Google Apps Script
+
+Add this custom function to a Google Sheet through **Extensions → Apps
+Script**, replacing the base URL with the Laravel host URL:
+
+```javascript
+function EIXPRICE(isin) {
+  const baseUrl = 'https://example.com/api/quotes/';
+  const response = UrlFetchApp.fetch(baseUrl + encodeURIComponent(isin));
+  const payload = JSON.parse(response.getContentText());
+  return payload.data.price;
+}
+```
+
+Use it from a cell:
+
+```text
+=EIXPRICE("IE00B3VTMJ91")
+```
+
+Invalid or unavailable ISINs surface the API's non-success response in the
+sheet instead of returning an arbitrary value.
+
 ## Source contract
 
 The verified EIX discovery, download and CSV formats are documented in
