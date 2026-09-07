@@ -1,6 +1,6 @@
 {
     "name": "gybra/laravel-eix-pricing",
-    "description": "Ingest EIX pre-trade data and expose the latest persisted quote in Laravel.",
+    "description": "Ingest EIX pre-trade data and expose the latest persisted quote by ISIN in Laravel.",
     "keywords": [
         "eix",
         "laravel",

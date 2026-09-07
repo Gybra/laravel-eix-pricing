@@ -1,7 +1,7 @@
 # Laravel EIX Pricing
 
 Laravel package for streaming EIX pre-trade data into a database and exposing
-the latest quote by instrument identifier.
+the latest quote by ISIN.
 
 > This package is under active development and is not ready for production.
 
@@ -35,7 +35,8 @@ default.
 
 The verified EIX discovery, download and CSV formats are documented in
 [`docs/eix-source-contract.md`](docs/eix-source-contract.md). The source
-provides ISINs but no ticker mapping.
+provides ISINs but no authoritative ticker mapping, so the initial release is
+ISIN-only.
 
 ## Development
 

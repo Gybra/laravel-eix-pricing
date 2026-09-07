@@ -7,7 +7,7 @@ complete EIX ingestion + quote API and (2) a thin Dockerized Laravel
 host supplying Supabase PostgreSQL and Cloudflare R2 configuration.
 
 Success: install/configure package, periodically ingest EIX pre-trade
-data, call one throttled GET endpoint with ISIN/ticker, receive latest
+data, call one throttled GET endpoint with an ISIN, receive the latest
 persisted quote.
 
 ## Repository topology and delivery order
@@ -29,8 +29,8 @@ persisted quote.
     guess.
 4.  Inspect a bounded representative real sample.
 5.  Verify compression, encoding, delimiter/quoting, headers,
-    ISIN/ticker, bid/ask/current/last, timestamps, MIC/venue, ordering
-    and duplicate-instrument semantics.
+    instrument identifiers, bid/ask/current/last, timestamps, MIC/venue,
+    ordering and duplicate-instrument semantics.
 6.  Create tiny real-format fixtures.
 7.  Define `price`: prefer canonical EIX field; derive midpoint only if
     necessary and explicitly documented/tested.
@@ -64,11 +64,11 @@ commands/schedule, bind contracts. No credentials/vendor SDKs hardcoded.
 
 ## Phase 3 --- Persistence
 
-After Phase 0, create minimal schema. Quotes likely need internal id,
-ISIN, ticker, optional MIC/venue, bid, ask, price if defined, quoted_at,
-imported_at and source identity. Use PostgreSQL numeric precision
-appropriate to observed data, not blind floats. Index ISIN/ticker and
-verified upsert identity.
+After Phase 0, create minimal schema. Quotes need an internal id, ISIN,
+bid, ask, derived midpoint price, status, quoted_at, imported_at, source
+identity and physical row order for deterministic ties. Use PostgreSQL
+numeric precision supporting the observed six fractional digits, not
+blind floats. Index ISIN and the verified upsert identity.
 
 Add small import/source metadata only as needed for
 idempotency/observability: source identity, start/finish, status,
@@ -130,39 +130,39 @@ suitable. If queued, define timeout/tries/backoff and document
 
 ## Phase 10 --- Quote lookup
 
-Identifier classifier + lookup service: normalized valid ISIN or
-validated normalized ticker; missing → 404; ambiguous ticker → explicit
-deterministic error. Query only completed/current data according to
-Phase 7.
+Lookup service accepts a normalized, checksum-valid ISIN; invalid input
+is rejected and a missing quote returns 404. Query only
+completed/current data according to Phase 7. Ticker lookup is outside
+v1 because the verified EIX feeds contain no authoritative mapping.
 
 ## Phase 11 --- Public API
 
-Expose `GET /api/quotes/{identifier}`. No auth; Laravel throttle. Thin
+Expose `GET /api/quotes/{isin}`. No auth; Laravel throttle. Thin
 controller → lookup service → API Resource.
 
 Target response:
 
 ``` json
-{"data":{"isin":"IE00B3VTMJ91","ticker":"CSBGE3","price":116.3225,"bid":116.309,"ask":116.336,"quoted_at":"2026-09-07T09:41:59.000Z"}}
+{"data":{"isin":"IE00B3VTMJ91","price":116.3225,"bid":116.309,"ask":116.336,"quoted_at":"2026-09-07T09:41:59.000Z"}}
 ```
 
-Finalize fields/price only after Phase 0. Feature-test ISIN/ticker 200,
-exact contract, 404, ambiguity/invalid behavior and throttle.
+Feature-test ISIN 200, exact contract, 404, invalid behavior and
+throttle.
 
 ## Phase 12 --- Google Apps Script example
 
 Document a minimal custom function:
 
 ``` javascript
-function EIXPRICE(identifier) {
+function EIXPRICE(isin) {
   const baseUrl = 'https://example.com/api/quotes/';
-  const response = UrlFetchApp.fetch(baseUrl + encodeURIComponent(identifier));
+  const response = UrlFetchApp.fetch(baseUrl + encodeURIComponent(isin));
   const payload = JSON.parse(response.getContentText());
   return payload.data.price;
 }
 ```
 
-Show `=EIXPRICE("IE00B3VTMJ91")` and ticker equivalent.
+Show `=EIXPRICE("IE00B3VTMJ91")`.
 
 ## Phase 13 --- Open-source docs + CI
 
@@ -243,7 +243,7 @@ starting the host repository.
 
 ## Decisions intentionally deferred until source inspection
 
-Do NOT invent: actual EIX file download mechanism, exact CSV columns,
-canonical `price`, instrument uniqueness when ticker duplicates exist,
-snapshot/generation requirement, or optimal batch size. Measure/verify
-first.
+The download mechanism, CSV columns, identifier scope and midpoint
+price semantics are verified in `docs/eix-source-contract.md`. Do not
+invent the remaining snapshot/generation requirement or optimal batch
+size; measure and verify them first.

@@ -96,10 +96,10 @@ The calculation must use decimal arithmetic at database precision, not binary
 floating point. A suspended `0/0` book therefore has midpoint `0`; status must
 remain persisted for debugging and future API policy changes.
 
-## Ticker limitation
+## Identifier scope
 
 The pre-trade source exposes only ISIN. The observed post-trade and official
-trade-list headers also contain no ticker mapping. Ticker lookup cannot be
-implemented from the verified EIX feeds alone and remains blocked until an
-authoritative ISIN-to-ticker source or an explicit package input contract is
-selected. No mapping may be inferred from filenames or instrument identifiers.
+trade-list headers also contain no ticker mapping. The initial package release
+therefore supports ISIN lookup only. Ticker lookup is out of scope unless a
+future version adopts an authoritative mapping source; no mapping may be
+inferred from filenames or instrument identifiers.
