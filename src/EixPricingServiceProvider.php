@@ -15,6 +15,8 @@ final class EixPricingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->loadMigrationsFrom(dirname(__DIR__).'/database/migrations');
+
         $this->publishes([
             dirname(__DIR__).'/config/eix-pricing.php' => config_path('eix-pricing.php'),
         ], 'eix-pricing-config');

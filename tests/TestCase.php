@@ -16,4 +16,18 @@ abstract class TestCase extends Orchestra
     {
         return [EixPricingServiceProvider::class];
     }
+
+    protected function defineEnvironment($app): void
+    {
+        $app['config']->set('database.default', 'testing');
+        $app['config']->set('database.connections.testing', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+        ]);
+        $app['config']->set('database.connections.package_testing', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+        ]);
+        $app['config']->set('eix-pricing.database.connection', 'package_testing');
+    }
 }

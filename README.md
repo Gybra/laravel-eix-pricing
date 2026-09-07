@@ -31,6 +31,15 @@ storage disk and retention, import batch size, schedule, routes and throttle.
 See [`config/eix-pricing.php`](config/eix-pricing.php) for every setting and
 default.
 
+## Database
+
+Package migrations load automatically and use `EIX_DB_CONNECTION`, falling
+back to the application's default connection. Run them with:
+
+```bash
+php artisan migrate
+```
+
 ## Source contract
 
 The verified EIX discovery, download and CSV formats are documented in
