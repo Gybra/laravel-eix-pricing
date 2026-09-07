@@ -47,13 +47,21 @@ it('returns the current quote from the configured connection', function (): void
         'imported_at' => $now,
     ]);
 
-    $quote = app(QuoteLookup::class)->find('ie000eofr2k5');
+    $previousTimezone = date_default_timezone_get();
+
+    try {
+        date_default_timezone_set('Europe/Rome');
+        $quote = app(QuoteLookup::class)->find('ie000eofr2k5');
+    } finally {
+        date_default_timezone_set($previousTimezone);
+    }
 
     expect($quote->isin)->toBe('IE000EOFR2K5')
         ->and($quote->bid)->toBe('4.461500')
         ->and($quote->ask)->toBe('4.623500')
         ->and($quote->price)->toBe('4.5425000')
         ->and($quote->quotedAt->format('Y-m-d H:i:s.v'))->toBe($now)
+        ->and($quote->quotedAt->format('P'))->toBe('+00:00')
         ->and(Schema::connection('testing')->hasTable('eix_quotes'))->toBeFalse();
 });
 

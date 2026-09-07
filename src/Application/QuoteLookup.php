@@ -6,6 +6,7 @@ namespace Gybra\EixPricing\Application;
 
 use Brick\Math\BigDecimal;
 use DateTimeImmutable;
+use DateTimeZone;
 use Gybra\EixPricing\Domain\Isin;
 use Gybra\EixPricing\Domain\Quote;
 use Illuminate\Database\DatabaseManager;
@@ -32,7 +33,7 @@ final readonly class QuoteLookup
             (string) BigDecimal::of((string) $row->bid)->toScale(6),
             (string) BigDecimal::of((string) $row->ask)->toScale(6),
             (string) BigDecimal::of((string) $row->price)->toScale(7),
-            new DateTimeImmutable((string) $row->quoted_at),
+            new DateTimeImmutable((string) $row->quoted_at, new DateTimeZone('UTC')),
         );
     }
 }
