@@ -17,8 +17,10 @@ persisted quote.
 - `Gybra/laravel-eix-pricing-host` contains only the Dockerized Laravel
   reference host and installs the package through Composer.
 - Complete and review the package before implementing the host.
-- Publish the package repository to Packagist; the host is not a
-  Packagist package.
+- Bootstrap and smoke-test the host against the package repository before
+  the first package release.
+- Publish the package to Packagist, then pin the host to the released
+  version; the host is not a Packagist package.
 
 ## Phase 0 --- Verify EIX contract (blocking)
 
@@ -184,7 +186,6 @@ data or secrets.
 -   Larastan clean at chosen level;
 -   package installs in clean Testbench;
 -   migrations work on PostgreSQL;
--   R2 configuration smoke-tested without committed credentials;
 -   real EIX smoke test performed manually;
 -   memory path reviewed: no full-file allocation;
 -   duplicate/overlap/failure paths verified;
@@ -194,19 +195,23 @@ data or secrets.
 -   independent full-package review completed, with every actionable
     finding resolved through the normal issue and pull request cycle.
 
-Gate: do not begin the host until this phase passes.
+Gate: do not begin the host until package-only checks and review findings
+pass. R2 is verified through the host before the first package release.
 
 ## Phase 15 --- Thin Dockerized host
 
 In `Gybra/laravel-eix-pricing-host`, create a minimal Laravel host that
-installs the released package with no duplicated business logic. Docker
-provides app + scheduler and, only if chosen, queue worker.
+installs the package with no duplicated business logic. Before the first
+tag it may use the package's Composer repository; pin it to the released
+version before completion. Docker provides app + scheduler and, only if
+chosen, queue worker.
 
 Configure Supabase PostgreSQL through normal Laravel pgsql/`DB_URL` with
 SSL. For a persistent Laravel backend prefer direct connection where
 network support permits or Supabase Session Pooler; do not use
 Transaction Pooler as the default ORM connection. Configure R2 as
-Laravel S3-compatible disk. Configure package
+Laravel S3-compatible storage and smoke-test staging cleanup with credentials
+supplied only through the host environment. Configure package
 DB/storage/schedule/routes.
 
 Acceptance: clone → env → Docker startup → migrations → manual
