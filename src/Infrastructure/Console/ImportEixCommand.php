@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gybra\EixPricing\Infrastructure\Console;
 
+use Gybra\EixPricing\Application\ImportAlreadyRunning;
 use Gybra\EixPricing\Application\ImportOrchestrator;
 use Illuminate\Console\Command;
 
@@ -15,7 +16,13 @@ final class ImportEixCommand extends Command
 
     public function handle(ImportOrchestrator $orchestrator): int
     {
-        $result = $orchestrator->run();
+        try {
+            $result = $orchestrator->run();
+        } catch (ImportAlreadyRunning $exception) {
+            $this->warn($exception->getMessage());
+
+            return self::FAILURE;
+        }
 
         if ($result->skipped) {
             $this->info("Source {$result->source} was already imported.");

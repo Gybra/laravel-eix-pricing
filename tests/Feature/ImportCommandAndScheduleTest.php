@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -46,6 +47,19 @@ it('runs and idempotently skips imports through Artisan', function (): void {
     $this->artisan('eix:import')
         ->expectsOutput('Source pretrade/2026-09-07/Pretrade.1788759600000.csv.gz was already imported.')
         ->assertSuccessful();
+});
+
+it('reports an overlapping import without an exception trace', function (): void {
+    $lock = Cache::store('array')->lock((string) config('eix-pricing.import.lock_name'), 60);
+    expect($lock->get())->toBeTrue();
+
+    try {
+        $this->artisan('eix:import')
+            ->expectsOutput('An EIX import is already running.')
+            ->assertFailed();
+    } finally {
+        $lock->release();
+    }
 });
 
 it('schedules imports with the configured cadence and overlap protection', function (): void {
