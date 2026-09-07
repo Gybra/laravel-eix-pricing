@@ -5,6 +5,8 @@ All notable changes are documented in this file. The project follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-08
+
 ### Added
 
 - Streaming EIX discovery, download and gzip/CSV normalization.
