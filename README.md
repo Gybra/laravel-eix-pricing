@@ -16,7 +16,20 @@ the latest quote by instrument identifier.
 composer require gybra/laravel-eix-pricing
 ```
 
-Laravel discovers the package service provider automatically.
+Laravel discovers the package service provider automatically. Publish the
+configuration when application-specific values are needed:
+
+```bash
+php artisan vendor:publish --tag=eix-pricing-config
+```
+
+## Configuration
+
+Runtime settings use the `EIX_` environment prefix. They cover the discovery
+and download endpoints, HTTP timeouts and retries, database connection,
+storage disk and retention, import batch size, schedule, routes and throttle.
+See [`config/eix-pricing.php`](config/eix-pricing.php) for every setting and
+default.
 
 ## Source contract
 
