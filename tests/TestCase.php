@@ -19,15 +19,19 @@ abstract class TestCase extends Orchestra
 
     protected function defineEnvironment($app): void
     {
+        $packageConnection = $app['config']->get('database.default') === 'pgsql'
+            ? $app['config']->get('database.connections.pgsql')
+            : [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+            ];
+
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite',
             'database' => ':memory:',
         ]);
-        $app['config']->set('database.connections.package_testing', [
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-        ]);
+        $app['config']->set('database.connections.package_testing', $packageConnection);
         $app['config']->set('eix-pricing.database.connection', 'package_testing');
         $app['config']->set('eix-pricing.routes.throttle', '2,1');
     }

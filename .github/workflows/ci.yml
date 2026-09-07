@@ -26,6 +26,42 @@ jobs:
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: composer test
 
+  postgres:
+    name: PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: eix_pricing
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d eix_pricing"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: eix_pricing
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: pdo_pgsql
+          tools: composer:v2
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: composer test
+
   quality:
     name: Code quality
     runs-on: ubuntu-latest

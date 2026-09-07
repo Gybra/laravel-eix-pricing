@@ -77,7 +77,7 @@ it('keeps the newest quote across unordered batches and deterministic ties', fun
         ->and($quotes)->toHaveCount(2)
         ->and($batchBindingCounts)->toBe([18, 9])
         ->and($quotes->first()->isin)->toBe('IE000EOFR2K5')
-        ->and($quotes->first()->bid)->toBe(4.5)
+        ->and((float) $quotes->first()->bid)->toBe(4.5)
         ->and($quotes->first()->source_row)->toBe(5)
         ->and(Schema::connection('testing')->hasTable('eix_quotes'))->toBeFalse();
 });

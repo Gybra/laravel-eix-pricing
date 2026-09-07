@@ -50,9 +50,9 @@ it('returns the current quote from the configured connection', function (): void
     $quote = app(QuoteLookup::class)->find('ie000eofr2k5');
 
     expect($quote->isin)->toBe('IE000EOFR2K5')
-        ->and($quote->bid)->toBe('4.4615')
-        ->and($quote->ask)->toBe('4.6235')
-        ->and($quote->price)->toBe('4.5425')
+        ->and($quote->bid)->toBe('4.461500')
+        ->and($quote->ask)->toBe('4.623500')
+        ->and($quote->price)->toBe('4.5425000')
         ->and($quote->quotedAt->format('Y-m-d H:i:s.v'))->toBe($now)
         ->and(Schema::connection('testing')->hasTable('eix_quotes'))->toBeFalse();
 });
