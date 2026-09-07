@@ -40,6 +40,8 @@ return [
     'schedule' => [
         'enabled' => (bool) env('EIX_SCHEDULE_ENABLED', true),
         'cron' => env('EIX_SCHEDULE_CRON', '*/15 * * * *'),
+        'overlap_minutes' => (int) env('EIX_SCHEDULE_OVERLAP_MINUTES', 180),
+        'on_one_server' => (bool) env('EIX_SCHEDULE_ON_ONE_SERVER', false),
     ],
 
     'routes' => [
