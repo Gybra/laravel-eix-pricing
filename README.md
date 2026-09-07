@@ -51,7 +51,7 @@ after every import attempt.
 | `EIX_IMPORT_BATCH_SIZE` | `1000` |
 | `EIX_IMPORT_LOCK_STORE` | Laravel default cache store |
 | `EIX_IMPORT_LOCK_NAME` | `eix-pricing:import` |
-| `EIX_IMPORT_LOCK_SECONDS` | `7200` seconds |
+| `EIX_IMPORT_LOCK_SECONDS` | `10800` seconds |
 | `EIX_SCHEDULE_ENABLED` | `true` |
 | `EIX_SCHEDULE_CRON` | Every 15 minutes |
 | `EIX_SCHEDULE_OVERLAP_MINUTES` | `180` minutes |
