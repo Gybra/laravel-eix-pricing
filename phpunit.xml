@@ -6,6 +6,7 @@
 >
     <testsuites>
         <testsuite name="Package">
+            <directory>tests/DisabledRoutes</directory>
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>

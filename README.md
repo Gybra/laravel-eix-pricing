@@ -61,6 +61,20 @@ a lock-capable cache store.
 The host application must run Laravel's scheduler. No queue worker or Redis is
 required.
 
+## Quote API
+
+```text
+GET /api/quotes/{isin}
+```
+
+```json
+{"data":{"isin":"IE000EOFR2K5","price":4.5425,"bid":4.4615,"ask":4.6235,"quoted_at":"2026-09-07T20:41:00.000000Z"}}
+```
+
+The endpoint is public and throttled. Invalid ISINs return 422 and missing
+quotes return 404. Route enablement, prefix, middleware and throttle are
+configurable.
+
 ## Source contract
 
 The verified EIX discovery, download and CSV formats are documented in

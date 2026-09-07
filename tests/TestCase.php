@@ -29,5 +29,6 @@ abstract class TestCase extends Orchestra
             'database' => ':memory:',
         ]);
         $app['config']->set('eix-pricing.database.connection', 'package_testing');
+        $app['config']->set('eix-pricing.routes.throttle', '2,1');
     }
 }
