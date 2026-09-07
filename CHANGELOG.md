@@ -1,0 +1,20 @@
+# Changelog
+
+All notable changes are documented in this file. The project follows
+[Semantic Versioning](https://semver.org/) and uses Git tags named `vMAJOR.MINOR.PATCH`.
+
+## [Unreleased]
+
+### Added
+
+- Streaming EIX discovery, download and gzip/CSV normalization.
+- Transactional bounded quote upserts and import metadata.
+- Manual and scheduled imports with overlap protection.
+- Throttled ISIN quote API and Google Apps Script example.
+
+## Release policy
+
+Move completed entries from `Unreleased` into a dated version section, create
+the matching Git tag and publish a GitHub release. Breaking public API or
+configuration changes require a major version; backward-compatible features
+require a minor version; fixes require a patch version.

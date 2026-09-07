@@ -41,3 +41,4 @@ jobs:
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: composer format:check
       - run: composer analyse
+      - run: composer audit --locked --no-interaction
