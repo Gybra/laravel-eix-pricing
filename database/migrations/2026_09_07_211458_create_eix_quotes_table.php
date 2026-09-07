@@ -16,17 +16,17 @@ return new class extends Migration
                 $table->foreignId('import_id')
                     ->constrained('eix_imports')
                     ->cascadeOnDelete();
-                $table->char('isin', 12);
+                $table->char('isin', 12)->unique();
                 $table->decimal('bid', 20, 6);
                 $table->decimal('ask', 20, 6);
                 $table->decimal('price', 21, 7);
                 $table->string('status', 8);
                 $table->timestampTz('quoted_at', 3);
+                $table->unsignedBigInteger('source_timestamp');
                 $table->unsignedBigInteger('source_row');
                 $table->timestampTz('imported_at', 3);
 
-                $table->unique(['import_id', 'source_row']);
-                $table->index(['isin', 'quoted_at']);
+                $table->index('import_id');
             });
     }
 

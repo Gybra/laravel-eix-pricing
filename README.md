@@ -41,6 +41,10 @@ back to the application's default connection. Run them with:
 php artisan migrate
 ```
 
+The package keeps one current quote per ISIN using bounded conditional
+upserts. See [`docs/persistence.md`](docs/persistence.md) for ordering and
+transaction semantics.
+
 ## Source contract
 
 The verified EIX discovery, download and CSV formats are documented in
