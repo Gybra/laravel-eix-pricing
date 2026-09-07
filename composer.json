@@ -8,6 +8,7 @@
         "quotes"
     ],
     "license": "MIT",
+    "homepage": "https://github.com/Gybra/laravel-eix-pricing",
     "type": "library",
     "require": {
         "php": "^8.4",
@@ -50,5 +51,9 @@
         "sort-packages": true
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "support": {
+        "issues": "https://github.com/Gybra/laravel-eix-pricing/issues",
+        "source": "https://github.com/Gybra/laravel-eix-pricing"
+    }
 }
