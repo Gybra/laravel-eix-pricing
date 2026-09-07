@@ -28,7 +28,6 @@ return [
     'storage' => [
         'disk' => env('EIX_STORAGE_DISK', 'local'),
         'prefix' => env('EIX_STORAGE_PREFIX', 'eix'),
-        'retention_days' => (int) env('EIX_STORAGE_RETENTION_DAYS', 7),
     ],
 
     'import' => [
