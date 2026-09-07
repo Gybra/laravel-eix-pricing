@@ -55,8 +55,8 @@ baseline CI, no host/R2/Supabase coupling.
 
 ## Phase 2 --- Config + provider
 
-Config: discovery URL, HTTP timeouts/retries, DB connection, storage
-disk/prefix, retention, batch size, schedule enabled/cadence, routes
+Config: discovery URL, HTTP timeouts/retries, DB connection, transient
+storage disk/prefix, batch size, schedule enabled/cadence, routes
 enabled/prefix, throttle.
 
 Provider: merge/publish config, load migrations/routes, register
@@ -81,15 +81,17 @@ chooses newest eligible source deterministically, handles
 empty/malformed/non-2xx. Unit-test ordering, empty/malformed,
 timeout/retry.
 
-## Phase 5 --- Bounded download + R2 archival
+## Phase 5 --- Bounded download + transient storage
 
-Stream HTTP response to local temporary resource, verify transfer,
-persist through configured Laravel filesystem, keep/reopen safe local
-staging for parser, cleanup in `finally`. Reference host uses R2;
-package only knows disk/prefix. Implement configurable source retention.
-Tests use fake HTTP/storage.
+Stream HTTP response to a local temporary resource, verify the transfer
+and persist it through the configured Laravel filesystem while the
+import runs. Reference host uses R2; package only knows disk/prefix.
+Delete both the configured-storage object and local temporary file in
+`finally` after success or failure. Keep only import metadata for
+diagnostics. Tests use fake HTTP/storage and cover both cleanup paths.
 
-Acceptance: no complete-source string allocation.
+Acceptance: no complete-source string allocation and no source artifact
+remains after an import attempt.
 
 ## Phase 6 --- Streaming gzip/CSV parser
 
@@ -113,12 +115,12 @@ staging is unnecessary. Do not guess.
 ## Phase 8 --- Import orchestrator
 
 Workflow: acquire lock → discover newest → stop if already completed →
-start metadata → download/stage/archive → stream parse → batch persist →
-mark success → retention → temp cleanup → release lock.
+start metadata → download/stage → stream parse → batch persist → mark
+success → source cleanup → release lock.
 
-On exception: mark failed when possible, report/log, cleanup, release
-lock, rethrow appropriately. Test duplicate source, mid-import failure,
-retry, lock and cleanup.
+On exception: mark failed when possible, report/log, delete configured
+and local source artifacts, release lock, then rethrow appropriately.
+Test duplicate source, mid-import failure, retry, lock and cleanup.
 
 ## Phase 9 --- Command + scheduler
 
@@ -167,8 +169,8 @@ Show `=EIXPRICE("IE00B3VTMJ91")`.
 ## Phase 13 --- Open-source docs + CI
 
 README covers purpose, architecture summary, requirements, install,
-config, migrations, storage, scheduling, manual import, API, Apps
-Script, Supabase/R2 examples, troubleshooting and memory constraints.
+config, migrations, transient storage, scheduling, manual import, API,
+Apps Script, Supabase/R2 examples, troubleshooting and memory constraints.
 Add LICENSE, CONTRIBUTING and release/changelog policy. Keep the Phase
 1 CI running Pest, Pint and Larastan; add dependency/security checks
 only where they provide a practical signal. Never commit real giant EIX

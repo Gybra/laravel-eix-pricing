@@ -27,7 +27,8 @@ php artisan vendor:publish --tag=eix-pricing-config
 
 Runtime settings use the `EIX_` environment prefix. They cover the discovery
 and download endpoints, HTTP timeouts and retries, database connection,
-storage disk and retention, import batch size, schedule, routes and throttle.
+transient storage disk and prefix, import batch size, schedule, routes and
+throttle. Source objects are removed after every import attempt.
 See [`config/eix-pricing.php`](config/eix-pricing.php) for every setting and
 default.
 
