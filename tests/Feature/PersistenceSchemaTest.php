@@ -33,13 +33,14 @@ it('creates the persistence schema on the configured connection', function (): v
             'price',
             'status',
             'quoted_at',
+            'source_timestamp',
             'source_row',
             'imported_at',
         ]))->toBeTrue()
         ->and(Schema::connection('testing')->hasTable('eix_imports'))->toBeFalse();
 });
 
-it('enforces source and physical row identity', function (): void {
+it('enforces unique import sources and current ISINs', function (): void {
     $connection = DB::connection('package_testing');
     $now = '2026-09-07 20:41:00.000';
 
@@ -69,6 +70,7 @@ it('enforces source and physical row identity', function (): void {
         'price' => '4.5425000',
         'status' => 'TRAD',
         'quoted_at' => $now,
+        'source_timestamp' => 1788813600000,
         'source_row' => 1,
         'imported_at' => $now,
     ];

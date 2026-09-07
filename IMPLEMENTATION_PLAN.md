@@ -102,15 +102,16 @@ rows, numeric/timestamps and generated multi-batch data.
 
 ## Phase 7 --- Bulk persistence + snapshot decision
 
-Consume records in configurable batches with PostgreSQL-friendly bulk
-upsert, correct configured connection and deterministic conflict key. No
+Consume records in configurable batches with a conditional bulk upsert
+on the configured connection. Store one current row per ISIN and replace
+it only when `(quoted_at, source_timestamp, source_row)` is greater. No
 per-row Eloquent saves.
 
-Decide snapshot consistency from Phase-0 facts. If partial imports must
-never be visible, use generation/staging: write generation, mark
-complete at end, query latest completed generation, clean obsolete
-generations. If independent latest-quote upserts are safe, document why
-staging is unnecessary. Do not guess.
+Each source row is a complete independent quote, so generation/staging
+is unnecessary. Run all batches for one source in a single transaction;
+a parsing or database failure restores the previous current quotes. The
+default batch of 1,000 uses 9,000 bound parameters, below PostgreSQL's
+65,535 parameter limit. See `docs/persistence.md`.
 
 ## Phase 8 --- Import orchestrator
 
