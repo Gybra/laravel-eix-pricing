@@ -24,6 +24,8 @@ final class Quote extends Model
     /** @use HasFactory<QuoteFactory> */
     use HasFactory;
 
+    use UsesPackageConnection;
+
     public $timestamps = false;
 
     protected $table = 'eix_quotes';
@@ -43,15 +45,6 @@ final class Quote extends Model
         'source_row',
         'imported_at',
     ];
-
-    public function getConnectionName(): ?string
-    {
-        $connection = config('eix-pricing.database.connection');
-
-        return is_string($connection) && $connection !== ''
-            ? $connection
-            : parent::getConnectionName();
-    }
 
     /**
      * @return array<string, string>

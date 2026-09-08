@@ -21,6 +21,8 @@ final class Import extends Model
     /** @use HasFactory<ImportFactory> */
     use HasFactory;
 
+    use UsesPackageConnection;
+
     protected $table = 'eix_imports';
 
     /**
@@ -34,15 +36,6 @@ final class Import extends Model
         'finished_at',
         'failure',
     ];
-
-    public function getConnectionName(): ?string
-    {
-        $connection = config('eix-pricing.database.connection');
-
-        return is_string($connection) && $connection !== ''
-            ? $connection
-            : parent::getConnectionName();
-    }
 
     /**
      * @return array<string, string>
