@@ -24,7 +24,7 @@ final readonly class EixDiscoveryClient
             ->timeout((int) config('eix-pricing.http.timeout'))
             ->retry(
                 (int) config('eix-pricing.http.retries') + 1,
-                (int) config('eix-pricing.http.retry_delay_ms'),
+                fn (int $attempt, mixed $exception): int => max(0, (int) config('eix-pricing.http.retry_delay_ms')) * $attempt,
             )
             ->get((string) config('eix-pricing.discovery_url'))
             ->throw()
@@ -36,6 +36,23 @@ final readonly class EixDiscoveryClient
 
         $cutoff = Date::now()->getTimestampMs()
             - max(0, (int) config('eix-pricing.import.lookback_minutes')) * 60_000;
+        $sources = $this->filterRecent($entries, $cutoff);
+
+        usort(
+            $sources,
+            fn (SourceFile $left, SourceFile $right): int => $left->timestampMilliseconds <=> $right->timestampMilliseconds
+                ?: $left->path <=> $right->path,
+        );
+
+        return $sources;
+    }
+
+    /**
+     * @param  array<mixed>  $entries
+     * @return list<SourceFile>
+     */
+    private function filterRecent(array $entries, int $cutoff): array
+    {
         $sources = [];
 
         foreach ($entries as $entry) {
@@ -45,12 +62,6 @@ final readonly class EixDiscoveryClient
                 $sources[] = $source;
             }
         }
-
-        usort(
-            $sources,
-            fn (SourceFile $left, SourceFile $right): int => $left->timestampMilliseconds <=> $right->timestampMilliseconds
-                ?: $left->path <=> $right->path,
-        );
 
         return $sources;
     }

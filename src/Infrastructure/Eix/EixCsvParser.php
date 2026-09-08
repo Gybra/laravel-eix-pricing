@@ -14,7 +14,7 @@ use InvalidArgumentException;
 use RuntimeException;
 use UnexpectedValueException;
 
-final class EixCsvParser
+final readonly class EixCsvParser
 {
     private const array HEADERS = [
         'Trading day & Trading time UTC',
@@ -65,9 +65,7 @@ final class EixCsvParser
      */
     private function normalize(array $values, int $sourceRow): QuoteRecord
     {
-        if (count($values) !== count(self::HEADERS) || in_array(null, $values, true)) {
-            $this->malformed($sourceRow, 'column count');
-        }
+        $this->assertColumnCount($values, $sourceRow);
 
         /** @var array<int, string> $values */
         [$timestamp, $isin, $bidQuantity, $askQuantity, $bid, $ask, $currency, $notation, $status] = $values;
@@ -83,14 +81,46 @@ final class EixCsvParser
             $this->malformed($sourceRow, 'ISIN');
         }
 
-        if ($bidDecimal->isGreaterThan($askDecimal)) {
+        $this->assertBook($bidDecimal, $askDecimal, $sourceRow);
+        $this->assertMetadata($currency, $notation, $status, $sourceRow);
+
+        return new QuoteRecord(
+            $sourceRow,
+            $isin,
+            $bid,
+            $ask,
+            (string) $bidDecimal->plus($askDecimal)->dividedBy(2, 7),
+            $status,
+            $this->parseQuotedAt($timestamp, $sourceRow),
+        );
+    }
+
+    /**
+     * @param  array<int, string|null>  $values
+     */
+    private function assertColumnCount(array $values, int $sourceRow): void
+    {
+        if (count($values) !== count(self::HEADERS) || in_array(null, $values, true)) {
+            $this->malformed($sourceRow, 'column count');
+        }
+    }
+
+    private function assertBook(BigDecimal $bid, BigDecimal $ask, int $sourceRow): void
+    {
+        if ($bid->isGreaterThan($ask)) {
             $this->malformed($sourceRow, 'bid exceeds ask');
         }
+    }
 
+    private function assertMetadata(string $currency, string $notation, string $status, int $sourceRow): void
+    {
         if ($currency !== 'EUR' || $notation !== 'MONE' || preg_match('/^[A-Z]{4}$/', $status) !== 1) {
             $this->malformed($sourceRow, 'quote metadata');
         }
+    }
 
+    private function parseQuotedAt(string $timestamp, int $sourceRow): DateTimeImmutable
+    {
         $quotedAt = DateTimeImmutable::createFromFormat(
             '!Y-m-d\TH:i:s.v\Z',
             $timestamp,
@@ -101,15 +131,7 @@ final class EixCsvParser
             $this->malformed($sourceRow, 'timestamp');
         }
 
-        return new QuoteRecord(
-            $sourceRow,
-            $isin,
-            $bid,
-            $ask,
-            (string) $bidDecimal->plus($askDecimal)->dividedBy(2, 7),
-            $status,
-            $quotedAt,
-        );
+        return $quotedAt;
     }
 
     private function decimal(string $value, int $sourceRow, string $field): BigDecimal

@@ -98,6 +98,7 @@ it('schedules imports with the configured cadence and overlap protection', funct
     expect($event)->not->toBeNull()
         ->and($event->expression)->toBe('*/30 * * * 1-5')
         ->and($event->withoutOverlapping)->toBeTrue()
+        ->and($event->runInBackground)->toBeTrue()
         ->and($event->expiresAt)->toBe(180)
         ->and($event->onOneServer)->toBeFalse();
 });
@@ -107,7 +108,8 @@ it('schedules nightly quote pruning', function (): void {
 
     expect($event)->not->toBeNull()
         ->and($event->expression)->toBe('0 1 * * 1-5')
-        ->and($event->withoutOverlapping)->toBeTrue();
+        ->and($event->withoutOverlapping)->toBeTrue()
+        ->and($event->runInBackground)->toBeTrue();
 });
 
 it('opts into single-server scheduling when configured', function (): void {

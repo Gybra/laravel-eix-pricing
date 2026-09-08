@@ -44,6 +44,27 @@ it('streams a source for processing and removes both staged copies', function ()
     Storage::disk('eix-test')->assertMissing('eix/Pretrade.1788759600000.csv.gz');
 });
 
+it('retries transient download failures', function (): void {
+    config()->set('eix-pricing.http.retries', 1);
+    config()->set('eix-pricing.http.retry_delay_ms', 0);
+    $contents = file_get_contents(__DIR__.'/../Fixtures/eix/pretrade.csv.gz');
+    Http::fakeSequence()
+        ->pushStatus(503)
+        ->push($contents);
+    $source = new SourceFile(
+        'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz',
+        1788759600000,
+    );
+
+    $result = app(EixSourceStager::class)->withSource(
+        $source,
+        fn (string $path): string => 'processed',
+    );
+
+    expect($result)->toBe('processed');
+    Http::assertSentCount(2);
+});
+
 it('removes both staged copies when processing fails', function (): void {
     Http::fake(['*/api/trade-file-contents*' => Http::response('source')]);
     $source = new SourceFile(

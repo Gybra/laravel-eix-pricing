@@ -13,6 +13,7 @@ All notable changes are documented in this file. The project follows
 ### Added
 
 - `eix:prune-quotes` deletes quotes older than two days by `imported_at`, scheduled daily at 01:00.
+- Eloquent import and quote models with `casts()`, factories, and bound service interfaces.
 
 ## [0.1.0] - 2026-09-08
 

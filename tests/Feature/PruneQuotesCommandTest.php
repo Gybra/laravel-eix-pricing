@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
+use Gybra\EixPricing\Infrastructure\Persistence\Models\Import;
+use Gybra\EixPricing\Infrastructure\Persistence\Models\Quote;
 use Illuminate\Support\Facades\Date;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 beforeEach(function (): void {
@@ -25,49 +26,22 @@ it('skips pruning on Saturday and Sunday', function (): void {
 });
 
 it('deletes quotes older than the retention window and keeps recent ones', function (): void {
-    $connection = DB::connection('package_testing');
-    $importId = $connection->table('eix_imports')->insertGetId([
-        'source' => 'pretrade/2026-09-06/Pretrade.1788584400000.csv.gz',
-        'status' => 'completed',
-        'rows_imported' => 2,
-        'started_at' => '2026-09-06 01:00:00',
-        'finished_at' => '2026-09-06 01:01:00',
-        'created_at' => '2026-09-06 01:00:00',
-        'updated_at' => '2026-09-06 01:01:00',
-    ]);
+    $import = Import::factory()->create();
 
-    $connection->table('eix_quotes')->insert([
-        [
-            'import_id' => $importId,
-            'isin' => 'IE000EOFR2K5',
-            'bid' => '4.000000',
-            'ask' => '5.000000',
-            'price' => '4.5000000',
-            'status' => 'TRAD',
-            'quoted_at' => '2026-09-06 00:50:00',
-            'source_timestamp' => 1788584400000,
-            'source_row' => 1,
-            'imported_at' => '2026-09-06 01:00:00',
-        ],
-        [
-            'import_id' => $importId,
-            'isin' => 'LU1094612022',
-            'bid' => '19.000000',
-            'ask' => '21.000000',
-            'price' => '20.0000000',
-            'status' => 'TRAD',
-            'quoted_at' => '2026-09-08 00:50:00',
-            'source_timestamp' => 1788759600000,
-            'source_row' => 2,
-            'imported_at' => '2026-09-08 00:50:00',
-        ],
+    Quote::factory()->create([
+        'import_id' => $import->id,
+        'isin' => 'IE000EOFR2K5',
+        'imported_at' => '2026-09-06 01:00:00',
+    ]);
+    Quote::factory()->create([
+        'import_id' => $import->id,
+        'isin' => 'LU1094612022',
+        'imported_at' => '2026-09-08 00:50:00',
     ]);
 
     $this->artisan('eix:prune-quotes')
         ->expectsOutput('Deleted 1 stale quote.')
         ->assertSuccessful();
 
-    $remaining = $connection->table('eix_quotes')->pluck('isin');
-
-    expect($remaining->all())->toBe(['LU1094612022']);
+    expect(Quote::query()->pluck('isin')->all())->toBe(['LU1094612022']);
 });

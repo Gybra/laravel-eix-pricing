@@ -6,6 +6,7 @@ namespace Gybra\EixPricing\Infrastructure\Eix;
 
 use Closure;
 use Gybra\EixPricing\Domain\SourceFile;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Filesystem\FilesystemManager;
 use Illuminate\Http\Client\Factory;
 use RuntimeException;
@@ -36,28 +37,38 @@ final readonly class EixSourceStager
 
         try {
             $this->download($source, $localPath);
-            $stream = fopen($localPath, 'rb');
-
-            if ($stream === false) {
-                throw new RuntimeException('Unable to open the downloaded EIX source file.');
-            }
-
-            try {
-                if (! $disk->put($storagePath, $stream)) {
-                    throw new RuntimeException('Unable to stage the EIX source file.');
-                }
-            } finally {
-                fclose($stream);
-            }
+            $this->stageToDisk($disk, $localPath, $storagePath);
 
             return $process($localPath);
         } finally {
-            try {
-                $disk->delete($storagePath);
-            } finally {
-                if (is_file($localPath)) {
-                    unlink($localPath);
-                }
+            $this->cleanup($disk, $localPath, $storagePath);
+        }
+    }
+
+    private function stageToDisk(Filesystem $disk, string $localPath, string $storagePath): void
+    {
+        $stream = fopen($localPath, 'rb');
+
+        if ($stream === false) {
+            throw new RuntimeException('Unable to open the downloaded EIX source file.');
+        }
+
+        try {
+            if (! $disk->put($storagePath, $stream)) {
+                throw new RuntimeException('Unable to stage the EIX source file.');
+            }
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    private function cleanup(Filesystem $disk, string $localPath, string $storagePath): void
+    {
+        try {
+            $disk->delete($storagePath);
+        } finally {
+            if (is_file($localPath)) {
+                unlink($localPath);
             }
         }
     }
@@ -69,7 +80,7 @@ final readonly class EixSourceStager
             ->timeout((int) config('eix-pricing.http.download_timeout'))
             ->retry(
                 (int) config('eix-pricing.http.retries') + 1,
-                (int) config('eix-pricing.http.retry_delay_ms'),
+                fn (int $attempt, mixed $exception): int => max(0, (int) config('eix-pricing.http.retry_delay_ms')) * $attempt,
             )
             ->sink($localPath)
             ->get((string) config('eix-pricing.download_url'), [

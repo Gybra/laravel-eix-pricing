@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Gybra\EixPricing\Application\QuoteLookup;
 use Gybra\EixPricing\Application\QuoteNotFound;
 use Gybra\EixPricing\Domain\Isin;
-use Illuminate\Support\Facades\DB;
+use Gybra\EixPricing\Infrastructure\Persistence\Models\Quote;
 use Illuminate\Support\Facades\Schema;
 
 beforeEach(function (): void {
@@ -23,19 +23,8 @@ it('rejects an invalid ISIN checksum', function (): void {
 });
 
 it('returns the current quote from the configured connection', function (): void {
-    $connection = DB::connection('package_testing');
     $now = '2026-09-07 20:41:00.000';
-    $importId = $connection->table('eix_imports')->insertGetId([
-        'source' => 'pretrade/source.csv.gz',
-        'status' => 'completed',
-        'rows_imported' => 1,
-        'started_at' => $now,
-        'finished_at' => $now,
-        'created_at' => $now,
-        'updated_at' => $now,
-    ]);
-    $connection->table('eix_quotes')->insert([
-        'import_id' => $importId,
+    Quote::factory()->create([
         'isin' => 'IE000EOFR2K5',
         'bid' => '4.461500',
         'ask' => '4.623500',
