@@ -5,6 +5,8 @@ All notable changes are documented in this file. The project follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-08
+
 ### Changed
 
 - Import every uncompleted EIX source in a 30-minute lookback window instead of only the newest file.
