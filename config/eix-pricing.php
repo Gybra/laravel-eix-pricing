@@ -35,13 +35,19 @@ return [
         'lock_store' => env('EIX_IMPORT_LOCK_STORE'),
         'lock_name' => env('EIX_IMPORT_LOCK_NAME', 'eix-pricing:import'),
         'lock_seconds' => (int) env('EIX_IMPORT_LOCK_SECONDS', 10800),
+        'lookback_minutes' => (int) env('EIX_IMPORT_LOOKBACK_MINUTES', 30),
     ],
 
     'schedule' => [
         'enabled' => (bool) env('EIX_SCHEDULE_ENABLED', true),
-        'cron' => env('EIX_SCHEDULE_CRON', '*/15 * * * *'),
+        'cron' => env('EIX_SCHEDULE_CRON', '*/30 * * * 1-5'),
         'overlap_minutes' => (int) env('EIX_SCHEDULE_OVERLAP_MINUTES', 180),
         'on_one_server' => (bool) env('EIX_SCHEDULE_ON_ONE_SERVER', false),
+    ],
+
+    'prune' => [
+        'cron' => env('EIX_PRUNE_CRON', '0 1 * * 1-5'),
+        'retention_days' => (int) env('EIX_PRUNE_RETENTION_DAYS', 2),
     ],
 
     'routes' => [

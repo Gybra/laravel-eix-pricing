@@ -7,11 +7,12 @@ the latest quote by ISIN.
 
 ## Architecture
 
-The package discovers the newest EIX source, streams it through local and
-configured transient storage, parses gzip/CSV records lazily, and conditionally
-upserts current quotes in bounded batches. Import metadata and cache locks make
-retries and overlapping scheduler instances safe. The host application only
-provides Laravel, database, cache, filesystem and scheduler infrastructure.
+The package discovers EIX sources from the last 30 minutes, streams each file
+through local and configured transient storage, parses gzip/CSV records lazily,
+and conditionally upserts current quotes in bounded batches. Import metadata
+and cache locks make retries and overlapping scheduler instances safe. The host
+application only provides Laravel, database, cache, filesystem and scheduler
+infrastructure.
 
 ## Requirements
 
@@ -52,10 +53,13 @@ after every import attempt.
 | `EIX_IMPORT_LOCK_STORE` | Laravel default cache store |
 | `EIX_IMPORT_LOCK_NAME` | `eix-pricing:import` |
 | `EIX_IMPORT_LOCK_SECONDS` | `10800` seconds |
+| `EIX_IMPORT_LOOKBACK_MINUTES` | `30` minutes |
 | `EIX_SCHEDULE_ENABLED` | `true` |
-| `EIX_SCHEDULE_CRON` | Every 15 minutes |
+| `EIX_SCHEDULE_CRON` | Every 30 minutes, Monday–Friday |
 | `EIX_SCHEDULE_OVERLAP_MINUTES` | `180` minutes |
 | `EIX_SCHEDULE_ON_ONE_SERVER` | `false` |
+| `EIX_PRUNE_CRON` | 01:00 Monday–Friday |
+| `EIX_PRUNE_RETENTION_DAYS` | `2` days |
 | `EIX_ROUTES_ENABLED` | `true` |
 | `EIX_ROUTES_PREFIX` | `api` |
 | `EIX_ROUTES_THROTTLE` | `60,1` |
@@ -84,10 +88,18 @@ Run an import manually with:
 php artisan eix:import
 ```
 
-The package schedules the same command every 15 minutes by default with
-overlap protection. Set `EIX_SCHEDULE_ENABLED=false` to disable it. Enable
-`EIX_SCHEDULE_ON_ONE_SERVER=true` only when every application instance shares
-a lock-capable cache store.
+Each run imports every uncompleted source whose timestamp falls inside
+`EIX_IMPORT_LOOKBACK_MINUTES` (default 30). The package schedules the same
+command every 30 minutes on weekdays with overlap protection. At 01:00 on
+weekdays it also runs `eix:prune-quotes`, deleting quotes whose `imported_at`
+is older than `EIX_PRUNE_RETENTION_DAYS` (default 2). Saturday and Sunday skip
+both import and prune because markets are closed. Set
+`EIX_SCHEDULE_ENABLED=false` to disable both schedules. Enable `EIX_SCHEDULE_ON_ONE_SERVER=true` only when
+every application instance shares a lock-capable cache store.
+
+```bash
+php artisan eix:prune-quotes
+```
 
 The host application must run Laravel's scheduler. No queue worker or Redis is
 required.
