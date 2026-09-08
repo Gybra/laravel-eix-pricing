@@ -24,7 +24,7 @@ final class QuoteFactory extends Factory
 
         return [
             'import_id' => Import::factory(),
-            'isin' => strtoupper(fake()->unique()->lexify('????????????')),
+            'isin' => 'IE000EOFR2K5',
             'bid' => '4.461500',
             'ask' => '4.623500',
             'price' => '4.5425000',

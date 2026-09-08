@@ -66,7 +66,7 @@ final class EixPricingServiceProvider extends ServiceProvider
         string $cron,
         ?int $overlapMinutes = null,
     ): void {
-        $event = $schedule->command($command)->cron($cron);
+        $event = $schedule->command($command)->cron($cron)->runInBackground();
 
         $event = $overlapMinutes === null
             ? $event->withoutOverlapping()

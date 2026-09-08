@@ -37,7 +37,9 @@ final readonly class QuoteService implements QuoteServiceInterface
 
     public function write(iterable $records, int $importId, int $sourceTimestamp): int
     {
-        return $this->writer->write($records, $importId, $sourceTimestamp);
+        return QuoteModel::query()->getConnection()->transaction(
+            fn (): int => $this->writer->write($records, $importId, $sourceTimestamp),
+        );
     }
 
     public function pruneStale(): int

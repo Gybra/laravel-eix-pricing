@@ -53,15 +53,17 @@ final readonly class ImportService implements ImportServiceInterface
 
     public function complete(int $id, int $rowsImported): void
     {
-        $now = Date::now();
+        $this->transaction(function () use ($id, $rowsImported): void {
+            $now = Date::now();
 
-        Import::query()->where('id', $id)->update([
-            'status' => 'completed',
-            'rows_imported' => $rowsImported,
-            'finished_at' => $now,
-            'failure' => null,
-            'updated_at' => $now,
-        ]);
+            Import::query()->where('id', $id)->update([
+                'status' => 'completed',
+                'rows_imported' => $rowsImported,
+                'finished_at' => $now,
+                'failure' => null,
+                'updated_at' => $now,
+            ]);
+        });
     }
 
     public function fail(int $id, string $failure): void

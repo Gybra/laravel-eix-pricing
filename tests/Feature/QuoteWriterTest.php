@@ -56,7 +56,7 @@ it('keeps the newest quote across unordered batches and deterministic ties', fun
     $batchBindingCounts = [];
     DB::connection('package_testing')->listen(
         function (QueryExecuted $query) use (&$batchBindingCounts): void {
-            if (str_contains($query->sql, 'INSERT INTO eix_quotes')) {
+            if (str_contains($query->sql, 'INSERT INTO') && str_contains($query->sql, 'eix_quotes')) {
                 $batchBindingCounts[] = count($query->bindings);
             }
         },

@@ -126,7 +126,9 @@ Script**, replacing the base URL with the Laravel host URL:
 ```javascript
 function EIXPRICE(isin) {
   const baseUrl = 'https://example.com/api/quotes/';
-  const response = UrlFetchApp.fetch(baseUrl + encodeURIComponent(isin));
+  const response = UrlFetchApp.fetch(baseUrl + encodeURIComponent(isin), {
+    muteHttpExceptions: true,
+  });
   const payload = JSON.parse(response.getContentText());
   return payload.data.price;
 }
