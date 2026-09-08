@@ -3,8 +3,9 @@
 declare(strict_types=1);
 
 use DateTimeImmutable;
+use Gybra\EixPricing\Application\Contracts\QuoteServiceInterface;
 use Gybra\EixPricing\Domain\QuoteRecord;
-use Gybra\EixPricing\Infrastructure\Persistence\QuoteWriter;
+use Gybra\EixPricing\Infrastructure\Persistence\Models\Import;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -17,16 +18,11 @@ beforeEach(function (): void {
 
 function createImport(string $source): int
 {
-    $now = '2026-09-07 20:41:00.000';
-
-    return DB::connection('package_testing')->table('eix_imports')->insertGetId([
+    return Import::factory()->create([
         'source' => $source,
         'status' => 'running',
         'rows_imported' => 0,
-        'started_at' => $now,
-        'created_at' => $now,
-        'updated_at' => $now,
-    ]);
+    ])->id;
 }
 
 function quoteRecord(
@@ -66,7 +62,7 @@ it('keeps the newest quote across unordered batches and deterministic ties', fun
         },
     );
 
-    $written = app(QuoteWriter::class)->write($records, $importId, 1788759600000);
+    $written = app(QuoteServiceInterface::class)->write($records, $importId, 1788759600000);
 
     $quotes = DB::connection('package_testing')
         ->table('eix_quotes')
@@ -88,13 +84,13 @@ it('uses source timestamp before row order when quote timestamps tie', function 
     $newerImport = createImport('pretrade/newer.csv.gz');
     $olderImport = createImport('pretrade/older.csv.gz');
 
-    app(QuoteWriter::class)->write([
+    app(QuoteServiceInterface::class)->write([
         quoteRecord('IE000EOFR2K5', $quotedAt, 100, '4.000000', '6.000000', '5.0000000'),
     ], $firstImport, 2000);
-    app(QuoteWriter::class)->write([
+    app(QuoteServiceInterface::class)->write([
         quoteRecord('IE000EOFR2K5', $quotedAt, 1, '5.000000', '7.000000', '6.0000000'),
     ], $newerImport, 3000);
-    app(QuoteWriter::class)->write([
+    app(QuoteServiceInterface::class)->write([
         quoteRecord('IE000EOFR2K5', $quotedAt, 999, '3.000000', '5.000000', '4.0000000'),
     ], $olderImport, 1000);
 
@@ -115,7 +111,7 @@ it('rolls back every batch when source iteration fails', function (): void {
         throw new RuntimeException('Source failed.');
     })();
 
-    expect(fn () => app(QuoteWriter::class)->write($records, $importId, 1788759600000))
+    expect(fn () => app(QuoteServiceInterface::class)->write($records, $importId, 1788759600000))
         ->toThrow(RuntimeException::class, 'Source failed.');
 
     expect(DB::connection('package_testing')->table('eix_quotes')->count())->toBe(0);

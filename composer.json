@@ -28,6 +28,7 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "Gybra\\EixPricing\\Database\\Factories\\": "database/factories/",
             "Tests\\": "tests/"
         }
     },
