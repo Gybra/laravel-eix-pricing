@@ -12,7 +12,10 @@ it('merges package configuration defaults', function (): void {
         ->and(config('eix-pricing.storage.retention_days'))->toBeNull()
         ->and(config('eix-pricing.import.lock_name'))->toBe('eix-pricing:import')
         ->and(config('eix-pricing.import.lock_seconds'))->toBe(10800)
-        ->and(config('eix-pricing.schedule.cron'))->toBe('*/15 * * * *')
+        ->and(config('eix-pricing.import.lookback_minutes'))->toBe(30)
+        ->and(config('eix-pricing.schedule.cron'))->toBe('*/30 * * * 1-5')
+        ->and(config('eix-pricing.prune.cron'))->toBe('0 1 * * 1-5')
+        ->and(config('eix-pricing.prune.retention_days'))->toBe(2)
         ->and(config('eix-pricing.routes.prefix'))->toBe('api');
 });
 

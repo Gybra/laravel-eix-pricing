@@ -6,13 +6,17 @@ namespace Gybra\EixPricing\Infrastructure\Eix;
 
 use Gybra\EixPricing\Domain\SourceFile;
 use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Facades\Date;
 use UnexpectedValueException;
 
 final readonly class EixDiscoveryClient
 {
     public function __construct(private Factory $http) {}
 
-    public function newest(): SourceFile
+    /**
+     * @return list<SourceFile>
+     */
+    public function recent(): array
     {
         $entries = $this->http
             ->acceptJson()
@@ -30,17 +34,25 @@ final readonly class EixDiscoveryClient
             throw new UnexpectedValueException('EIX discovery returned no source files.');
         }
 
-        $newest = null;
+        $cutoff = Date::now()->getTimestampMs()
+            - max(0, (int) config('eix-pricing.import.lookback_minutes')) * 60_000;
+        $sources = [];
 
         foreach ($entries as $entry) {
             $source = $this->mapEntry($entry);
 
-            if ($newest === null || $this->isNewer($source, $newest)) {
-                $newest = $source;
+            if ($source->timestampMilliseconds >= $cutoff) {
+                $sources[] = $source;
             }
         }
 
-        return $newest;
+        usort(
+            $sources,
+            fn (SourceFile $left, SourceFile $right): int => $left->timestampMilliseconds <=> $right->timestampMilliseconds
+                ?: $left->path <=> $right->path,
+        );
+
+        return $sources;
     }
 
     private function mapEntry(mixed $entry): SourceFile
@@ -56,12 +68,5 @@ final readonly class EixDiscoveryClient
         }
 
         return new SourceFile($path, (int) $matches[1]);
-    }
-
-    private function isNewer(SourceFile $candidate, SourceFile $current): bool
-    {
-        return $candidate->timestampMilliseconds > $current->timestampMilliseconds
-            || ($candidate->timestampMilliseconds === $current->timestampMilliseconds
-                && $candidate->path > $current->path);
     }
 }

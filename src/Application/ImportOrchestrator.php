@@ -32,8 +32,15 @@ final readonly class ImportOrchestrator
         private QuoteWriter $writer,
     ) {}
 
-    public function run(): ImportResult
+    /**
+     * @return list<ImportResult>
+     */
+    public function run(): array
     {
+        if (Date::now()->isWeekend()) {
+            return [];
+        }
+
         $repository = $this->cache->store(config('eix-pricing.import.lock_store'));
 
         if (! $repository instanceof Repository || ! $repository->getStore() instanceof LockProvider) {
@@ -50,7 +57,13 @@ final readonly class ImportOrchestrator
         }
 
         try {
-            return $this->import($this->discovery->newest());
+            $results = [];
+
+            foreach ($this->discovery->recent() as $source) {
+                $results[] = $this->import($source);
+            }
+
+            return $results;
         } finally {
             $lock->release();
         }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use Gybra\EixPricing\Application\ImportAlreadyRunning;
 use Gybra\EixPricing\Application\ImportOrchestrator;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
@@ -19,8 +21,14 @@ beforeEach(function (): void {
     config()->set('eix-pricing.import.lock_store', 'array');
     config()->set('eix-pricing.import.lock_name', 'eix-import-test');
     config()->set('eix-pricing.import.lock_seconds', 60);
+    config()->set('eix-pricing.import.lookback_minutes', 30);
+    Date::setTestNow(Date::createFromTimestampMs(1_788_759_600_000));
     Cache::store('array')->flush();
     Http::preventStrayRequests();
+});
+
+afterEach(function (): void {
+    Date::setTestNow();
 });
 
 function fakeSuccessfulImport(): void
@@ -38,11 +46,12 @@ function fakeSuccessfulImport(): void
 it('imports a source and completes its metadata', function (): void {
     fakeSuccessfulImport();
 
-    $result = app(ImportOrchestrator::class)->run();
+    $results = app(ImportOrchestrator::class)->run();
     $import = DB::connection('package_testing')->table('eix_imports')->first();
 
-    expect($result->skipped)->toBeFalse()
-        ->and($result->rowsImported)->toBe(6)
+    expect($results)->toHaveCount(1)
+        ->and($results[0]->skipped)->toBeFalse()
+        ->and($results[0]->rowsImported)->toBe(6)
         ->and($import->status)->toBe('completed')
         ->and($import->rows_imported)->toBe(6)
         ->and($import->finished_at)->not->toBeNull()
@@ -51,17 +60,66 @@ it('imports a source and completes its metadata', function (): void {
     Storage::disk('eix-test')->assertMissing('eix/Pretrade.1788759600000.csv.gz');
 });
 
+it('imports every uncompleted source in the lookback window', function (): void {
+    $fixture = file_get_contents(__DIR__.'/../Fixtures/eix/pretrade.csv.gz');
+    Http::fake(function (Request $request) use ($fixture) {
+        if (str_contains($request->url(), 'trade-files')) {
+            return Http::response([
+                ['fileName' => 'pretrade/2026-09-07/Pretrade.1788757200000.csv.gz'],
+                ['fileName' => 'pretrade/2026-09-07/Pretrade.1788758400000.csv.gz'],
+                ['fileName' => 'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz'],
+            ]);
+        }
+
+        return Http::response($fixture);
+    });
+
+    $results = app(ImportOrchestrator::class)->run();
+    $sources = DB::connection('package_testing')
+        ->table('eix_imports')
+        ->orderBy('source')
+        ->pluck('source');
+
+    expect($results)->toHaveCount(2)
+        ->and($results[0]->source)->toBe('pretrade/2026-09-07/Pretrade.1788758400000.csv.gz')
+        ->and($results[1]->source)->toBe('pretrade/2026-09-07/Pretrade.1788759600000.csv.gz')
+        ->and($sources->all())->toBe([
+            'pretrade/2026-09-07/Pretrade.1788758400000.csv.gz',
+            'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz',
+        ]);
+});
+
 it('skips a source that already completed', function (): void {
     fakeSuccessfulImport();
     app(ImportOrchestrator::class)->run();
 
-    $result = app(ImportOrchestrator::class)->run();
+    $results = app(ImportOrchestrator::class)->run();
 
-    expect($result->skipped)->toBeTrue()
-        ->and($result->rowsImported)->toBe(0)
+    expect($results)->toHaveCount(1)
+        ->and($results[0]->skipped)->toBeTrue()
+        ->and($results[0]->rowsImported)->toBe(0)
         ->and(DB::connection('package_testing')->table('eix_imports')->count())->toBe(1);
 
     Http::assertSentCount(3);
+});
+
+it('does not discover or import on weekends', function (): void {
+    Date::setTestNow('2026-09-12 10:00:00');
+    Http::fake();
+
+    expect(app(ImportOrchestrator::class)->run())->toBe([]);
+    Http::assertNothingSent();
+});
+
+it('returns no results when the lookback window is empty', function (): void {
+    Http::fake([
+        config('eix-pricing.discovery_url') => Http::response([
+            ['fileName' => 'pretrade/2026-09-07/Pretrade.1788757200000.csv.gz'],
+        ]),
+    ]);
+
+    expect(app(ImportOrchestrator::class)->run())->toBe([])
+        ->and(DB::connection('package_testing')->table('eix_imports')->count())->toBe(0);
 });
 
 it('rolls back quotes, marks failure, and retries the same source', function (): void {
@@ -91,9 +149,9 @@ it('rolls back quotes, marks failure, and retries the same source', function ():
         ->and(DB::connection('package_testing')->table('eix_quotes')->count())->toBe(0);
     Storage::disk('eix-test')->assertMissing('eix/Pretrade.1788759600000.csv.gz');
 
-    $result = app(ImportOrchestrator::class)->run();
+    $results = app(ImportOrchestrator::class)->run();
 
-    expect($result->skipped)->toBeFalse()
+    expect($results[0]->skipped)->toBeFalse()
         ->and(DB::connection('package_testing')->table('eix_imports')->count())->toBe(1)
         ->and(DB::connection('package_testing')->table('eix_imports')->value('status'))->toBe('completed');
 });

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gybra\EixPricing;
 
 use Gybra\EixPricing\Infrastructure\Console\ImportEixCommand;
+use Gybra\EixPricing\Infrastructure\Console\PruneQuotesCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,7 +29,10 @@ final class EixPricingServiceProvider extends ServiceProvider
         ], 'eix-pricing-config');
 
         if ($this->app->runningInConsole()) {
-            $this->commands([ImportEixCommand::class]);
+            $this->commands([
+                ImportEixCommand::class,
+                PruneQuotesCommand::class,
+            ]);
         }
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
@@ -36,14 +40,34 @@ final class EixPricingServiceProvider extends ServiceProvider
                 return;
             }
 
-            $event = $schedule
-                ->command('eix:import')
-                ->cron((string) config('eix-pricing.schedule.cron'))
-                ->withoutOverlapping((int) config('eix-pricing.schedule.overlap_minutes'));
-
-            if (config('eix-pricing.schedule.on_one_server')) {
-                $event->onOneServer();
-            }
+            $this->scheduleCommand(
+                $schedule,
+                'eix:import',
+                (string) config('eix-pricing.schedule.cron'),
+                (int) config('eix-pricing.schedule.overlap_minutes'),
+            );
+            $this->scheduleCommand(
+                $schedule,
+                'eix:prune-quotes',
+                (string) config('eix-pricing.prune.cron'),
+            );
         });
+    }
+
+    private function scheduleCommand(
+        Schedule $schedule,
+        string $command,
+        string $cron,
+        ?int $overlapMinutes = null,
+    ): void {
+        $event = $schedule->command($command)->cron($cron);
+
+        $event = $overlapMinutes === null
+            ? $event->withoutOverlapping()
+            : $event->withoutOverlapping($overlapMinutes);
+
+        if (config('eix-pricing.schedule.on_one_server')) {
+            $event->onOneServer();
+        }
     }
 }
