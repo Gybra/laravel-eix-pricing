@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gybra\EixPricing\Infrastructure\Persistence\Models;
+namespace Gybra\EixPricing\Infrastructure\Persistence\Models\Traits;
 
 trait UsesPackageConnection
 {

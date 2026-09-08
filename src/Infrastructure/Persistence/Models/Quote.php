@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gybra\EixPricing\Infrastructure\Persistence\Models;
 
 use Gybra\EixPricing\Database\Factories\QuoteFactory;
+use Gybra\EixPricing\Infrastructure\Persistence\Models\Traits\UsesPackageConnection;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
