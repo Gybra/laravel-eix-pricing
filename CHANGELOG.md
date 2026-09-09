@@ -5,6 +5,8 @@ All notable changes are documented in this file. The project follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-09
+
 ### Fixed
 
 - Import no longer fails when EIX emits a one-sided book whose bid exceeds ask.
