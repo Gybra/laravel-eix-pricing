@@ -9,14 +9,12 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
     Schema::connection('package_testing')->dropAllTables();
     $this->artisan('migrate:fresh')->assertSuccessful();
-    Storage::fake('eix-test');
-    config()->set('eix-pricing.storage.disk', 'eix-test');
     config()->set('eix-pricing.http.retries', 0);
     config()->set('eix-pricing.import.lock_store', 'array');
     config()->set('eix-pricing.import.lock_name', 'eix-import-test');
@@ -43,8 +41,9 @@ function fakeSuccessfulImport(): void
     ]);
 }
 
-it('imports a source and completes its metadata', function (): void {
+it('imports a source, completes its metadata, and logs timing metrics', function (): void {
     fakeSuccessfulImport();
+    Log::spy();
 
     $results = app(ImportOrchestrator::class)->run();
     $import = DB::connection('package_testing')->table('eix_imports')->first();
@@ -57,7 +56,13 @@ it('imports a source and completes its metadata', function (): void {
         ->and($import->finished_at)->not->toBeNull()
         ->and(DB::connection('package_testing')->table('eix_quotes')->count())->toBe(5);
 
-    Storage::disk('eix-test')->assertMissing('eix/Pretrade.1788759600000.csv.gz');
+    Log::shouldHaveReceived('info')->withArgs(
+        fn (string $message, array $context): bool => $message === 'EIX source imported'
+            && $context['source'] === 'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz'
+            && $context['rows_parsed'] === 6
+            && $context['parsing_import_duration_ms'] >= 0
+            && $context['total_import_duration_ms'] >= $context['parsing_import_duration_ms'],
+    )->once();
 });
 
 it('imports every uncompleted source in the lookback window', function (): void {
@@ -147,7 +152,6 @@ it('rolls back quotes, marks failure, and retries the same source', function ():
     expect($failedImport->status)->toBe('failed')
         ->and($failedImport->failure)->toContain('row 3')
         ->and(DB::connection('package_testing')->table('eix_quotes')->count())->toBe(0);
-    Storage::disk('eix-test')->assertMissing('eix/Pretrade.1788759600000.csv.gz');
 
     $results = app(ImportOrchestrator::class)->run();
 

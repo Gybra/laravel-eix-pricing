@@ -6,17 +6,13 @@ namespace Gybra\EixPricing\Infrastructure\Eix;
 
 use Closure;
 use Gybra\EixPricing\Domain\SourceFile;
-use Illuminate\Contracts\Filesystem\Filesystem;
-use Illuminate\Filesystem\FilesystemManager;
 use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
-final readonly class EixSourceStager
+final readonly class EixSourceDownloader
 {
-    public function __construct(
-        private Factory $http,
-        private FilesystemManager $filesystems,
-    ) {}
+    public function __construct(private Factory $http) {}
 
     /**
      * @template TResult
@@ -32,40 +28,17 @@ final readonly class EixSourceStager
             throw new RuntimeException('Unable to create a temporary EIX source file.');
         }
 
-        $disk = $this->filesystems->disk((string) config('eix-pricing.storage.disk'));
-        $storagePath = $this->storagePath($source);
-
         try {
+            $startedAt = hrtime(true);
             $this->download($source, $localPath);
-            $this->stageToDisk($disk, $localPath, $storagePath);
+
+            Log::info('EIX source downloaded', [
+                'source' => $source->path,
+                'compressed_bytes' => filesize($localPath),
+                'download_duration_ms' => $this->elapsedMilliseconds($startedAt),
+            ]);
 
             return $process($localPath);
-        } finally {
-            $this->cleanup($disk, $localPath, $storagePath);
-        }
-    }
-
-    private function stageToDisk(Filesystem $disk, string $localPath, string $storagePath): void
-    {
-        $stream = fopen($localPath, 'rb');
-
-        if ($stream === false) {
-            throw new RuntimeException('Unable to open the downloaded EIX source file.');
-        }
-
-        try {
-            if (! $disk->put($storagePath, $stream)) {
-                throw new RuntimeException('Unable to stage the EIX source file.');
-            }
-        } finally {
-            fclose($stream);
-        }
-    }
-
-    private function cleanup(Filesystem $disk, string $localPath, string $storagePath): void
-    {
-        try {
-            $disk->delete($storagePath);
         } finally {
             if (is_file($localPath)) {
                 unlink($localPath);
@@ -90,10 +63,8 @@ final readonly class EixSourceStager
             ->throw();
     }
 
-    private function storagePath(SourceFile $source): string
+    private function elapsedMilliseconds(int $startedAt): float
     {
-        $prefix = trim((string) config('eix-pricing.storage.prefix'), '/');
-
-        return ($prefix === '' ? '' : $prefix.'/').basename($source->path);
+        return round((hrtime(true) - $startedAt) / 1_000_000, 3);
     }
 }

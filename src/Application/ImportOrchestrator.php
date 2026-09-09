@@ -10,11 +10,12 @@ use Gybra\EixPricing\Domain\ImportResult;
 use Gybra\EixPricing\Domain\SourceFile;
 use Gybra\EixPricing\Infrastructure\Eix\EixCsvParser;
 use Gybra\EixPricing\Infrastructure\Eix\EixDiscoveryClient;
-use Gybra\EixPricing\Infrastructure\Eix\EixSourceStager;
+use Gybra\EixPricing\Infrastructure\Eix\EixSourceDownloader;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Cache\Repository;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -27,7 +28,7 @@ final readonly class ImportOrchestrator
         private ImportServiceInterface $imports,
         private QuoteServiceInterface $quotes,
         private EixDiscoveryClient $discovery,
-        private EixSourceStager $stager,
+        private EixSourceDownloader $downloader,
         private EixCsvParser $parser,
     ) {}
 
@@ -77,11 +78,12 @@ final readonly class ImportOrchestrator
         }
 
         $importId = $this->imports->start($source->path, $existing?->id);
+        $startedAt = hrtime(true);
 
         try {
-            return $this->stager->withSource(
+            return $this->downloader->withSource(
                 $source,
-                fn (string $path): ImportResult => $this->persist($source, $importId, $path),
+                fn (string $path): ImportResult => $this->persist($source, $importId, $path, $startedAt),
             );
         } catch (Throwable $exception) {
             try {
@@ -94,9 +96,10 @@ final readonly class ImportOrchestrator
         }
     }
 
-    private function persist(SourceFile $source, int $importId, string $path): ImportResult
+    private function persist(SourceFile $source, int $importId, string $path, int $startedAt): ImportResult
     {
-        return $this->imports->transaction(function () use ($source, $importId, $path): ImportResult {
+        $parsingStartedAt = hrtime(true);
+        $result = $this->imports->transaction(function () use ($source, $importId, $path): ImportResult {
             $rowsImported = $this->quotes->write(
                 $this->parser->records($path),
                 $importId,
@@ -107,6 +110,20 @@ final readonly class ImportOrchestrator
 
             return new ImportResult($source->path, $rowsImported, false);
         });
+
+        Log::info('EIX source imported', [
+            'source' => $source->path,
+            'rows_parsed' => $result->rowsImported,
+            'parsing_import_duration_ms' => $this->elapsedMilliseconds($parsingStartedAt),
+            'total_import_duration_ms' => $this->elapsedMilliseconds($startedAt),
+        ]);
+
+        return $result;
+    }
+
+    private function elapsedMilliseconds(int $startedAt): float
+    {
+        return round((hrtime(true) - $startedAt) / 1_000_000, 3);
     }
 
     private function failImport(int $importId, Throwable $exception): void

@@ -141,6 +141,24 @@ it('accepts a knocked-out book with a two-letter status', function (): void {
     }
 });
 
+it('does not parse later rows until iteration advances', function (): void {
+    $path = temporaryGzip(implode("\n", [
+        'Trading day & Trading time UTC,Instrument Identifier,Bid Quantity,Ask Quantity,Bid Price,Ask Price,Price Currency,Price Notation,Status',
+        '2026-09-07T20:36:01.000Z,IE000EOFR2K5,1200,1200,4.461500,4.623500,EUR,MONE,TRAD',
+        '2026-09-07T20:36:02.000Z,INVALID,1200,1200,4.461500,4.623500,EUR,MONE,TRAD',
+        '',
+    ]));
+
+    try {
+        $records = app(EixCsvParser::class)->records($path);
+
+        expect($records->current()->sourceRow)->toBe(2)
+            ->and(fn () => $records->next())->toThrow(UnexpectedValueException::class, 'row 3');
+    } finally {
+        unlink($path);
+    }
+});
+
 it('iterates generated multi-batch data', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'eix-test-');
     $handle = $path === false ? false : gzopen($path, 'wb9');

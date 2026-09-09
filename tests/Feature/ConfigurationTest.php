@@ -8,8 +8,8 @@ use Illuminate\Support\ServiceProvider;
 it('merges package configuration defaults', function (): void {
     expect(config('eix-pricing.discovery_url'))
         ->toBe('https://european-investor-exchange.com/api/trade-files?tradeFileType=pretrade')
-        ->and(config('eix-pricing.import.batch_size'))->toBe(1000)
-        ->and(config('eix-pricing.storage.retention_days'))->toBeNull()
+        ->and(config('eix-pricing.import.batch_size'))->toBe(2500)
+        ->and(array_key_exists('storage', config('eix-pricing')))->toBeFalse()
         ->and(config('eix-pricing.import.lock_name'))->toBe('eix-pricing:import')
         ->and(config('eix-pricing.import.lock_seconds'))->toBe(10800)
         ->and(config('eix-pricing.import.lookback_minutes'))->toBe(30)

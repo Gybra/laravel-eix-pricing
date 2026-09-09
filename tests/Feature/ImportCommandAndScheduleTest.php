@@ -8,13 +8,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
     Schema::connection('package_testing')->dropAllTables();
     $this->artisan('migrate:fresh')->assertSuccessful();
-    Storage::fake('eix-test');
-    config()->set('eix-pricing.storage.disk', 'eix-test');
     config()->set('eix-pricing.http.retries', 0);
     config()->set('eix-pricing.import.lock_store', 'array');
     config()->set('eix-pricing.import.lookback_minutes', 30);

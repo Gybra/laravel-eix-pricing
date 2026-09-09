@@ -4,8 +4,7 @@
 
 The compressed source is streamed to the system temporary directory before it
 is parsed. Increase the temporary volume rather than loading the response into
-memory. Failed and completed attempts remove both local and configured-storage
-copies automatically.
+memory. Failed and completed attempts remove the local file automatically.
 
 ## Download times out
 
@@ -25,18 +24,13 @@ Point `EIX_IMPORT_LOCK_STORE` at a cache store shared by every server. Enable
 `EIX_SCHEDULE_ON_ONE_SERVER` only with that shared store. The package does not
 require Redis; any Laravel cache store implementing atomic locks is suitable.
 
-## R2 source object remains after failure
-
-Confirm the configured R2 credentials allow object deletion for
-`EIX_STORAGE_PREFIX`. Cleanup errors are surfaced rather than silently ignored.
-Delete an orphan manually after correcting permissions.
-
 ## Database import is slow
 
-Keep `EIX_IMPORT_BATCH_SIZE` at its default until measurements justify a
-change. The default uses 9,000 bound parameters per statement, below
-PostgreSQL's 65,535 limit. Ensure migrations have created the ISIN and import
-indexes.
+Keep `EIX_IMPORT_BATCH_SIZE` at its default until deployment measurements
+justify a change. The 2,500-row default uses 22,500 bound parameters per
+statement. Inspect the structured import logs to separate download, parsing and
+database statement time before tuning it. Ensure migrations have created the
+ISIN and import indexes.
 
 ## API returns 404
 
