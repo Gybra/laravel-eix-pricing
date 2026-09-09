@@ -7,6 +7,7 @@ namespace Gybra\EixPricing;
 use Gybra\EixPricing\Application\Contracts\ImportServiceInterface;
 use Gybra\EixPricing\Application\Contracts\QuoteServiceInterface;
 use Gybra\EixPricing\Infrastructure\Console\ImportEixCommand;
+use Gybra\EixPricing\Infrastructure\Console\ProgressReporter;
 use Gybra\EixPricing\Infrastructure\Console\PruneQuotesCommand;
 use Gybra\EixPricing\Infrastructure\Persistence\ImportService;
 use Gybra\EixPricing\Infrastructure\Persistence\QuoteService;
@@ -20,6 +21,7 @@ final class EixPricingServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(dirname(__DIR__).'/config/eix-pricing.php', 'eix-pricing');
         $this->app->bind(QuoteServiceInterface::class, QuoteService::class);
         $this->app->bind(ImportServiceInterface::class, ImportService::class);
+        $this->app->singleton(ProgressReporter::class);
     }
 
     public function boot(): void

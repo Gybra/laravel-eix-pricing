@@ -45,6 +45,14 @@ it('runs and idempotently skips imports through Artisan', function (): void {
     ]);
 
     $this->artisan('eix:import')
+        ->expectsOutputToContain('Discovering EIX sources from the last 30 minutes...')
+        ->expectsOutputToContain('Found 1 source.')
+        ->expectsOutputToContain('[1/1] pretrade/2026-09-07/Pretrade.1788759600000.csv.gz')
+        ->expectsOutputToContain('Downloading compressed source...')
+        ->expectsOutputToContain('Downloaded')
+        ->expectsOutputToContain('Parsing CSV and writing quote batches...')
+        ->expectsOutputToContain('Wrote batch 1:')
+        ->expectsOutputToContain('Finished source:')
         ->expectsOutput('Imported 6 rows from pretrade/2026-09-07/Pretrade.1788759600000.csv.gz.')
         ->assertSuccessful();
 

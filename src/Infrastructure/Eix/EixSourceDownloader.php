@@ -6,13 +6,18 @@ namespace Gybra\EixPricing\Infrastructure\Eix;
 
 use Closure;
 use Gybra\EixPricing\Domain\SourceFile;
+use Gybra\EixPricing\Infrastructure\Console\ProgressReporter;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
 use RuntimeException;
 
 final readonly class EixSourceDownloader
 {
-    public function __construct(private Factory $http) {}
+    public function __construct(
+        private Factory $http,
+        private ProgressReporter $progress,
+    ) {}
 
     /**
      * @template TResult
@@ -30,13 +35,20 @@ final readonly class EixSourceDownloader
 
         try {
             $startedAt = hrtime(true);
+            $this->progress->say('Downloading compressed source...');
             $this->download($source, $localPath);
+
+            $bytes = filesize($localPath);
+            $duration = $this->elapsedMilliseconds($startedAt);
+            $size = is_int($bytes) ? Number::fileSize($bytes) : 'unknown size';
 
             Log::info('EIX source downloaded', [
                 'source' => $source->path,
-                'compressed_bytes' => filesize($localPath),
-                'download_duration_ms' => $this->elapsedMilliseconds($startedAt),
+                'compressed_bytes' => $bytes,
+                'download_duration_ms' => $duration,
             ]);
+            $this->progress->say("Downloaded {$size} in {$this->progress->duration($duration)}.");
+            $this->progress->say('Parsing CSV and writing quote batches...');
 
             return $process($localPath);
         } finally {

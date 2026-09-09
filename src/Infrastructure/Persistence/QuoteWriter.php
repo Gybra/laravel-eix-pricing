@@ -7,12 +7,15 @@ namespace Gybra\EixPricing\Infrastructure\Persistence;
 use DateTimeImmutable;
 use DateTimeZone;
 use Gybra\EixPricing\Domain\QuoteRecord;
+use Gybra\EixPricing\Infrastructure\Console\ProgressReporter;
 use Gybra\EixPricing\Infrastructure\Persistence\Models\Quote as QuoteModel;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\Log;
 
 final readonly class QuoteWriter
 {
+    public function __construct(private ?ProgressReporter $progress = null) {}
+
     /**
      * @param  iterable<QuoteRecord>  $records
      */
@@ -34,7 +37,15 @@ final readonly class QuoteWriter
             $rowsParsed++;
 
             if (count($batch) === $batchSize) {
-                [$submitted, $duration] = $this->upsert($connection, $table, $batch, $importId, $sourceTimestamp);
+                [$submitted, $duration] = $this->writeBatch(
+                    $connection,
+                    $table,
+                    $batch,
+                    $importId,
+                    $sourceTimestamp,
+                    $databaseBatches + 1,
+                    $rowsParsed,
+                );
                 $rowsSubmitted += $submitted;
                 $databaseWriteDuration += $duration;
                 $databaseBatches++;
@@ -43,7 +54,15 @@ final readonly class QuoteWriter
         }
 
         if ($batch !== []) {
-            [$submitted, $duration] = $this->upsert($connection, $table, $batch, $importId, $sourceTimestamp);
+            [$submitted, $duration] = $this->writeBatch(
+                $connection,
+                $table,
+                $batch,
+                $importId,
+                $sourceTimestamp,
+                $databaseBatches + 1,
+                $rowsParsed,
+            );
             $rowsSubmitted += $submitted;
             $databaseWriteDuration += $duration;
             $databaseBatches++;
@@ -60,6 +79,36 @@ final readonly class QuoteWriter
         ]);
 
         return $rowsParsed;
+    }
+
+    /**
+     * @param  list<QuoteRecord>  $records
+     * @return array{int, float}
+     */
+    private function writeBatch(
+        Connection $connection,
+        string $table,
+        array $records,
+        int $importId,
+        int $sourceTimestamp,
+        int $batchNumber,
+        int $rowsParsed,
+    ): array {
+        $batchCount = count($records);
+        [$submitted, $duration] = $this->upsert($connection, $table, $records, $importId, $sourceTimestamp);
+
+        if ($this->progress !== null) {
+            $this->progress->say(sprintf(
+                'Wrote batch %d: %d rows (%d unique) in %s. %d rows so far.',
+                $batchNumber,
+                $batchCount,
+                $submitted,
+                $this->progress->duration($duration),
+                $rowsParsed,
+            ));
+        }
+
+        return [$submitted, $duration];
     }
 
     /**

@@ -15,7 +15,18 @@ final class ImportEixCommand extends Command
 
     protected $description = 'Import EIX pre-trade sources from the lookback window';
 
-    public function handle(ImportOrchestrator $orchestrator): int
+    public function handle(ImportOrchestrator $orchestrator, ProgressReporter $progress): int
+    {
+        $progress->bind(fn (string $message) => $this->line($message));
+
+        try {
+            return $this->import($orchestrator);
+        } finally {
+            $progress->bind(null);
+        }
+    }
+
+    private function import(ImportOrchestrator $orchestrator): int
     {
         if (Date::now()->isWeekend()) {
             $this->info('Skipped: markets are closed.');

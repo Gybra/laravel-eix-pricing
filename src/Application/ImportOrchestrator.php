@@ -8,6 +8,7 @@ use Gybra\EixPricing\Application\Contracts\ImportServiceInterface;
 use Gybra\EixPricing\Application\Contracts\QuoteServiceInterface;
 use Gybra\EixPricing\Domain\ImportResult;
 use Gybra\EixPricing\Domain\SourceFile;
+use Gybra\EixPricing\Infrastructure\Console\ProgressReporter;
 use Gybra\EixPricing\Infrastructure\Eix\EixCsvParser;
 use Gybra\EixPricing\Infrastructure\Eix\EixDiscoveryClient;
 use Gybra\EixPricing\Infrastructure\Eix\EixSourceDownloader;
@@ -30,6 +31,7 @@ final readonly class ImportOrchestrator
         private EixDiscoveryClient $discovery,
         private EixSourceDownloader $downloader,
         private EixCsvParser $parser,
+        private ProgressReporter $progress,
     ) {}
 
     /**
@@ -57,16 +59,37 @@ final readonly class ImportOrchestrator
         }
 
         try {
-            $results = [];
-
-            foreach ($this->discovery->recent() as $source) {
-                $results[] = $this->import($source);
-            }
-
-            return $results;
+            return $this->importSources();
         } finally {
             $lock->release();
         }
+    }
+
+    /**
+     * @return list<ImportResult>
+     */
+    private function importSources(): array
+    {
+        $lookback = max(0, (int) config('eix-pricing.import.lookback_minutes'));
+        $this->progress->say("Discovering EIX sources from the last {$lookback} minutes...");
+
+        $sources = $this->discovery->recent();
+
+        if ($sources === []) {
+            return [];
+        }
+
+        $count = count($sources);
+        $this->progress->say($count === 1 ? 'Found 1 source.' : "Found {$count} sources.");
+
+        $results = [];
+
+        foreach ($sources as $index => $source) {
+            $this->progress->say('['.($index + 1)."/{$count}] {$source->path}");
+            $results[] = $this->import($source);
+        }
+
+        return $results;
     }
 
     private function import(SourceFile $source): ImportResult
@@ -74,6 +97,8 @@ final readonly class ImportOrchestrator
         $existing = $this->imports->findBySource($source->path);
 
         if ($existing?->status === 'completed') {
+            $this->progress->say('Already imported. Skipping.');
+
             return new ImportResult($source->path, 0, true);
         }
 
@@ -81,11 +106,20 @@ final readonly class ImportOrchestrator
         $startedAt = hrtime(true);
 
         try {
-            return $this->downloader->withSource(
+            $result = $this->downloader->withSource(
                 $source,
                 fn (string $path): ImportResult => $this->persist($source, $importId, $path, $startedAt),
             );
+            $this->progress->say(sprintf(
+                'Finished source: %d rows in %s.',
+                $result->rowsImported,
+                $this->progress->duration($this->elapsedMilliseconds($startedAt)),
+            ));
+
+            return $result;
         } catch (Throwable $exception) {
+            $this->progress->say('Import failed: '.$exception->getMessage());
+
             try {
                 $this->failImport($importId, $exception);
             } catch (Throwable $metadataException) {

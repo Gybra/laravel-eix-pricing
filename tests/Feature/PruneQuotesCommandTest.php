@@ -40,7 +40,11 @@ it('deletes quotes older than the retention window and keeps recent ones', funct
     ]);
 
     $this->artisan('eix:prune-quotes')
+        ->expectsOutputToContain('Pruning quotes imported on or before')
         ->expectsOutput('Deleted 1 stale quote.')
+        ->expectsOutputToContain('Pruning imports finished on or before')
+        ->expectsOutput('Deleted 0 stale imports.')
+        ->expectsOutput('Prune finished.')
         ->assertSuccessful();
 
     expect(Quote::query()->pluck('isin')->all())->toBe(['LU1094612022']);
