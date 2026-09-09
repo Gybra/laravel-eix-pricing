@@ -81,7 +81,6 @@ final readonly class EixCsvParser
             $this->malformed($sourceRow, 'ISIN');
         }
 
-        $this->assertBook($bidDecimal, $askDecimal, $sourceRow);
         $this->assertMetadata($currency, $notation, $status, $sourceRow);
 
         return new QuoteRecord(
@@ -102,13 +101,6 @@ final readonly class EixCsvParser
     {
         if (count($values) !== count(self::HEADERS) || in_array(null, $values, true)) {
             $this->malformed($sourceRow, 'column count');
-        }
-    }
-
-    private function assertBook(BigDecimal $bid, BigDecimal $ask, int $sourceRow): void
-    {
-        if ($bid->isGreaterThan($ask)) {
-            $this->malformed($sourceRow, 'bid exceeds ask');
         }
     }
 

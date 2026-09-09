@@ -101,11 +101,26 @@ it('rejects invalid quote values', function (string $record, string $reason): vo
         '2026-09-07T20:36:01.000Z,IE000EOFR2K5,1200,1200,4.461500,4.623500,USD,MONE,TRAD',
         'quote metadata',
     ],
-    'crossed book' => [
-        '2026-09-07T20:36:01.000Z,IE000EOFR2K5,1200,1200,5.000000,4.623500,EUR,MONE,TRAD',
-        'bid exceeds ask',
-    ],
 ]);
+
+it('accepts a one-sided book whose bid exceeds ask', function (): void {
+    $path = temporaryGzip(implode("\n", [
+        'Trading day & Trading time UTC,Instrument Identifier,Bid Quantity,Ask Quantity,Bid Price,Ask Price,Price Currency,Price Notation,Status',
+        '2026-09-07T20:36:01.000Z,IE000EOFR2K5,175000,0,0.999,0.0,EUR,MONE,SOLD',
+        '',
+    ]));
+
+    try {
+        $record = app(EixCsvParser::class)->records($path)->current();
+
+        expect($record->bid)->toBe('0.999')
+            ->and($record->ask)->toBe('0.0')
+            ->and($record->price)->toBe('0.4995000')
+            ->and($record->status)->toBe('SOLD');
+    } finally {
+        unlink($path);
+    }
+});
 
 it('iterates generated multi-batch data', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'eix-test-');
