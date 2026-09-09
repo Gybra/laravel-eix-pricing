@@ -19,8 +19,9 @@ abstract class TestCase extends Orchestra
 
     protected function defineEnvironment($app): void
     {
-        $packageConnection = $app['config']->get('database.default') === 'pgsql'
-            ? $app['config']->get('database.connections.pgsql')
+        $default = $app['config']->get('database.default');
+        $packageConnection = in_array($default, ['pgsql', 'mysql', 'mariadb'], true)
+            ? $app['config']->get('database.connections.'.$default)
             : [
                 'driver' => 'sqlite',
                 'database' => ':memory:',
