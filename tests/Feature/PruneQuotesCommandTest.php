@@ -45,3 +45,34 @@ it('deletes quotes older than the retention window and keeps recent ones', funct
 
     expect(Quote::query()->pluck('isin')->all())->toBe(['LU1094612022']);
 });
+
+it('deletes imports older than the retention window and keeps recent ones', function (): void {
+    Import::factory()->create([
+        'started_at' => '2026-09-05 01:00:00',
+        'finished_at' => '2026-09-05 01:05:00',
+    ]);
+    $recent = Import::factory()->create([
+        'started_at' => '2026-09-07 01:00:00',
+        'finished_at' => '2026-09-07 01:05:00',
+    ]);
+
+    $this->artisan('eix:prune-quotes')
+        ->expectsOutput('Deleted 1 stale import.')
+        ->assertSuccessful();
+
+    expect(Import::query()->pluck('id')->all())->toBe([$recent->id]);
+});
+
+it('does not prune a running import', function (): void {
+    $running = Import::factory()->create([
+        'status' => 'running',
+        'started_at' => '2026-09-05 01:00:00',
+        'finished_at' => null,
+    ]);
+
+    $this->artisan('eix:prune-quotes')
+        ->expectsOutput('Deleted 0 stale imports.')
+        ->assertSuccessful();
+
+    expect(Import::query()->whereKey($running->id)->exists())->toBeTrue();
+});

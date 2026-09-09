@@ -92,7 +92,8 @@ Each run imports every uncompleted source whose timestamp falls inside
 `EIX_IMPORT_LOOKBACK_MINUTES` (default 30). The package schedules the same
 command every 30 minutes on weekdays with overlap protection. At 01:00 on
 weekdays it also runs `eix:prune-quotes`, deleting quotes whose `imported_at`
-is older than `EIX_PRUNE_RETENTION_DAYS` (default 2). Saturday and Sunday skip
+and imports whose `finished_at` are older than `EIX_PRUNE_RETENTION_DAYS`
+(default 2). Saturday and Sunday skip
 both import and prune because markets are closed. Set
 `EIX_SCHEDULE_ENABLED=false` to disable both schedules. Enable `EIX_SCHEDULE_ON_ONE_SERVER=true` only when
 every application instance shares a lock-capable cache store.

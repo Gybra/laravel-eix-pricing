@@ -5,6 +5,10 @@ All notable changes are documented in this file. The project follows
 
 ## [Unreleased]
 
+### Added
+
+- `eix:prune-quotes` also deletes imports whose `finished_at` is older than the retention window.
+
 ### Fixed
 
 - Import no longer fails when EIX emits a two-letter `KO` status.

@@ -17,6 +17,8 @@ interface ImportServiceInterface
 
     public function fail(int $id, string $failure): void;
 
+    public function pruneStale(): int;
+
     /**
      * @template TReturn
      *
