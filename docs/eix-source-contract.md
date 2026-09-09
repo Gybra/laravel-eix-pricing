@@ -65,9 +65,9 @@ Observed values:
 - every inspected instrument identifier was a valid ISIN;
 - quantities and prices are decimal values with up to six fractional digits;
 - currency was `EUR` and price notation was `MONE`;
-- statuses were `TRAD`, `HALT`, `SUSP` and `QUOT`;
+- statuses include `TRAD`, `HALT`, `SUSP`, `QUOT` and `SOLD`;
 - suspended rows can contain zero quantities and zero bid/ask prices;
-- no inspected row had bid greater than ask;
+- one-sided books are common: a positive bid with ask `0` (often `SOLD`, also `TRAD`);
 - no ticker or venue/MIC field exists in the pre-trade source.
 
 ## Ordering and duplicates
@@ -93,8 +93,9 @@ price = (bid + ask) / 2
 ```
 
 The calculation must use decimal arithmetic at database precision, not binary
-floating point. A suspended `0/0` book therefore has midpoint `0`; status must
-remain persisted for debugging and future API policy changes.
+floating point. A suspended `0/0` book therefore has midpoint `0`. A one-sided book with
+ask `0` has midpoint `bid / 2`. Status must remain persisted for debugging
+and future API policy changes.
 
 ## Identifier scope
 
