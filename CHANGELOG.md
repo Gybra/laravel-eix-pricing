@@ -5,6 +5,10 @@ All notable changes are documented in this file. The project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Import no longer fails when EIX emits a two-letter `KO` status.
+
 ## [0.2.1] - 2026-09-09
 
 ### Fixed

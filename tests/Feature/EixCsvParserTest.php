@@ -122,6 +122,25 @@ it('accepts a one-sided book whose bid exceeds ask', function (): void {
     }
 });
 
+it('accepts a knocked-out book with a two-letter status', function (): void {
+    $path = temporaryGzip(implode("\n", [
+        'Trading day & Trading time UTC,Instrument Identifier,Bid Quantity,Ask Quantity,Bid Price,Ask Price,Price Currency,Price Notation,Status',
+        '2026-09-07T20:36:01.000Z,IE000EOFR2K5,0,0,0.001,0.000,EUR,MONE,KO',
+        '',
+    ]));
+
+    try {
+        $record = app(EixCsvParser::class)->records($path)->current();
+
+        expect($record->status)->toBe('KO')
+            ->and($record->bid)->toBe('0.001')
+            ->and($record->ask)->toBe('0.000')
+            ->and($record->price)->toBe('0.0005000');
+    } finally {
+        unlink($path);
+    }
+});
+
 it('iterates generated multi-batch data', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'eix-test-');
     $handle = $path === false ? false : gzopen($path, 'wb9');
