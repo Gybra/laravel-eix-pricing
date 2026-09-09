@@ -21,6 +21,21 @@ Run package migrations after configuring the connection:
 php artisan migrate --force
 ```
 
+## MySQL and MariaDB
+
+Use Laravel's standard `mysql` connection. Quote upserts switch to
+`ON DUPLICATE KEY UPDATE` automatically.
+
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=<HOST>
+DB_PORT=3306
+DB_DATABASE=<DATABASE>
+DB_USERNAME=<USER>
+DB_PASSWORD=<PASSWORD>
+EIX_DB_CONNECTION=mysql
+```
+
 ## Cloudflare R2
 
 Install Laravel's S3 Flysystem adapter in the host application:

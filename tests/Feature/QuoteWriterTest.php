@@ -6,9 +6,11 @@ use DateTimeImmutable;
 use Gybra\EixPricing\Application\Contracts\QuoteServiceInterface;
 use Gybra\EixPricing\Domain\QuoteRecord;
 use Gybra\EixPricing\Infrastructure\Persistence\Models\Import;
+use Gybra\EixPricing\Infrastructure\Persistence\QuoteWriter;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use ReflectionMethod;
 
 beforeEach(function (): void {
     Schema::connection('package_testing')->dropAllTables();
@@ -116,3 +118,25 @@ it('rolls back every batch when source iteration fails', function (): void {
 
     expect(DB::connection('package_testing')->table('eix_quotes')->count())->toBe(0);
 });
+
+it('compiles a conflict upsert for postgres', function (): void {
+    $sql = insertSql('eix_quotes', 'pgsql');
+
+    expect($sql)->toContain('ON CONFLICT (isin)')
+        ->and($sql)->not->toContain('ON DUPLICATE KEY UPDATE');
+});
+
+it('compiles a duplicate-key upsert for mysql drivers', function (string $driver): void {
+    $sql = insertSql('eix_quotes', $driver);
+
+    expect($sql)->toContain('ON DUPLICATE KEY UPDATE')
+        ->and($sql)->toContain('VALUES(quoted_at)')
+        ->and($sql)->not->toContain('ON CONFLICT');
+})->with(['mysql', 'mariadb']);
+
+function insertSql(string $table, string $driver): string
+{
+    $method = new ReflectionMethod(QuoteWriter::class, 'insertSql');
+
+    return $method->invoke(new QuoteWriter, $table, $driver);
+}

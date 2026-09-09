@@ -5,6 +5,10 @@ All notable changes are documented in this file. The project follows
 
 ## [Unreleased]
 
+### Added
+
+- Quote upserts use `ON DUPLICATE KEY UPDATE` on MySQL and MariaDB.
+
 ## [0.2.2] - 2026-09-09
 
 ### Added

@@ -35,8 +35,8 @@ Delete an orphan manually after correcting permissions.
 
 Keep `EIX_IMPORT_BATCH_SIZE` at its default until measurements justify a
 change. The default uses 9,000 bound parameters per statement, below
-PostgreSQL's 65,535 limit. Ensure the package connection points to PostgreSQL
-and that migrations have created the ISIN and import indexes.
+PostgreSQL's 65,535 limit. Ensure migrations have created the ISIN and import
+indexes.
 
 ## API returns 404
 
