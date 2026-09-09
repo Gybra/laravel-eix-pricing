@@ -38,7 +38,7 @@ final class ImportEixCommand extends Command
         $isins = $this->option('isins');
 
         try {
-            $results = $orchestrator->run(filled($isins) ? (string) $isins : null);
+            $results = $orchestrator->run(is_string($isins) && filled($isins) ? $isins : null);
         } catch (ImportAlreadyRunning $exception) {
             $this->warn($exception->getMessage());
 
