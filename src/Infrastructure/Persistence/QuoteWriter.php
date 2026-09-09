@@ -205,9 +205,13 @@ final readonly class QuoteWriter
             ." OR (VALUES(quoted_at) = {$table}.quoted_at AND VALUES(source_timestamp) = {$table}.source_timestamp AND VALUES(source_row) > {$table}.source_row)";
 
         $assignments = [];
+        $first = true;
 
         foreach (['import_id', 'bid', 'ask', 'price', 'status', 'quoted_at', 'source_timestamp', 'source_row', 'imported_at'] as $column) {
-            $assignments[] = "{$column} = IF({$newer}, VALUES({$column}), {$table}.{$column})";
+            // MySQL/MariaDB re-evaluate IF() after earlier assignments; freeze the predicate once.
+            $predicate = $first ? "@eix_newer := ({$newer})" : '@eix_newer';
+            $assignments[] = "{$column} = IF({$predicate}, VALUES({$column}), {$table}.{$column})";
+            $first = false;
         }
 
         $set = implode(",\n                ", $assignments);

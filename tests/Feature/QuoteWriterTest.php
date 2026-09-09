@@ -171,6 +171,7 @@ it('compiles a duplicate-key upsert for mysql drivers', function (string $driver
 
     expect($sql)->toContain('ON DUPLICATE KEY UPDATE')
         ->and($sql)->toContain('VALUES(quoted_at)')
+        ->and($sql)->toContain('@eix_newer')
         ->and($sql)->not->toContain('ON CONFLICT');
 })->with(['mysql', 'mariadb']);
 
