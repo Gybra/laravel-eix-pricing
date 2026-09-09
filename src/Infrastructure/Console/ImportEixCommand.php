@@ -8,10 +8,11 @@ use Gybra\EixPricing\Application\ImportAlreadyRunning;
 use Gybra\EixPricing\Application\ImportOrchestrator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Date;
+use InvalidArgumentException;
 
 final class ImportEixCommand extends Command
 {
-    protected $signature = 'eix:import';
+    protected $signature = 'eix:import {--isins= : Comma-separated ISINs to import}';
 
     protected $description = 'Import EIX pre-trade sources from the lookback window';
 
@@ -34,10 +35,20 @@ final class ImportEixCommand extends Command
             return self::SUCCESS;
         }
 
+        $isins = $this->option('isins');
+
+        if (is_string($isins) && $isins !== '') {
+            config(['eix-pricing.import.isins' => $isins]);
+        }
+
         try {
             $results = $orchestrator->run();
         } catch (ImportAlreadyRunning $exception) {
             $this->warn($exception->getMessage());
+
+            return self::FAILURE;
+        } catch (InvalidArgumentException $exception) {
+            $this->error($exception->getMessage());
 
             return self::FAILURE;
         }

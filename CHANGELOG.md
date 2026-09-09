@@ -5,6 +5,10 @@ All notable changes are documented in this file. The project follows
 
 ## [Unreleased]
 
+### Added
+
+- Optional `EIX_IMPORT_ISINS` / `eix:import --isins=` comma-separated allow list; other CSV rows are discarded.
+
 ### Changed
 
 - Removed transient Laravel filesystem staging; imports now use only a streamed local temporary gzip file.

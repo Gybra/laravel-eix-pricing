@@ -94,6 +94,27 @@ it('imports every uncompleted source in the lookback window', function (): void 
         ]);
 });
 
+it('imports only the configured ISINs', function (): void {
+    fakeSuccessfulImport();
+    config()->set('eix-pricing.import.isins', 'IE000EOFR2K5, ie00bmtm6b32');
+
+    $results = app(ImportOrchestrator::class)->run();
+
+    expect($results[0]->rowsImported)->toBe(3)
+        ->and(DB::connection('package_testing')->table('eix_quotes')->orderBy('isin')->pluck('isin')->all())
+        ->toBe(['IE000EOFR2K5', 'IE00BMTM6B32']);
+});
+
+it('rejects invalid configured import ISINs before discovery', function (): void {
+    Http::fake();
+    config()->set('eix-pricing.import.isins', 'NOTANISIN');
+
+    expect(fn () => app(ImportOrchestrator::class)->run())
+        ->toThrow(InvalidArgumentException::class, 'Invalid ISIN.');
+
+    Http::assertNothingSent();
+});
+
 it('skips a source that already completed', function (): void {
     fakeSuccessfulImport();
     app(ImportOrchestrator::class)->run();

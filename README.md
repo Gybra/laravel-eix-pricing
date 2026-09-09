@@ -51,6 +51,7 @@ files are removed after every import attempt.
 | `EIX_IMPORT_LOCK_NAME` | `eix-pricing:import` |
 | `EIX_IMPORT_LOCK_SECONDS` | `10800` seconds |
 | `EIX_IMPORT_LOOKBACK_MINUTES` | `30` minutes |
+| `EIX_IMPORT_ISINS` | Empty (import every ISIN) |
 | `EIX_SCHEDULE_ENABLED` | `true` |
 | `EIX_SCHEDULE_CRON` | Every 30 minutes, Monday–Friday |
 | `EIX_SCHEDULE_OVERLAP_MINUTES` | `180` minutes |
@@ -84,10 +85,13 @@ Run an import manually with:
 
 ```bash
 php artisan eix:import
+php artisan eix:import --isins=IE000EOFR2K5,IE00BMTM6B32
 ```
 
 Each run imports every uncompleted source whose timestamp falls inside
-`EIX_IMPORT_LOOKBACK_MINUTES` (default 30). The package schedules the same
+`EIX_IMPORT_LOOKBACK_MINUTES` (default 30). Set `EIX_IMPORT_ISINS` or pass
+`--isins=` to keep only those ISINs and discard the rest of each CSV.
+`--isins=` overrides the environment value for that run. The package schedules the same
 command every 30 minutes on weekdays with overlap protection. At 01:00 on
 weekdays it also runs `eix:prune-quotes`, deleting quotes whose `imported_at`
 and imports whose `finished_at` are older than `EIX_PRUNE_RETENTION_DAYS`

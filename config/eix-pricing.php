@@ -31,6 +31,7 @@ return [
         'lock_name' => env('EIX_IMPORT_LOCK_NAME', 'eix-pricing:import'),
         'lock_seconds' => (int) env('EIX_IMPORT_LOCK_SECONDS', 10800),
         'lookback_minutes' => (int) env('EIX_IMPORT_LOOKBACK_MINUTES', 30),
+        'isins' => env('EIX_IMPORT_ISINS'),
     ],
 
     'schedule' => [

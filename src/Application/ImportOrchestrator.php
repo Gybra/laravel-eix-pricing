@@ -7,6 +7,7 @@ namespace Gybra\EixPricing\Application;
 use Gybra\EixPricing\Application\Contracts\ImportServiceInterface;
 use Gybra\EixPricing\Application\Contracts\QuoteServiceInterface;
 use Gybra\EixPricing\Domain\ImportResult;
+use Gybra\EixPricing\Domain\Isin;
 use Gybra\EixPricing\Domain\SourceFile;
 use Gybra\EixPricing\Infrastructure\Console\ProgressReporter;
 use Gybra\EixPricing\Infrastructure\Eix\EixCsvParser;
@@ -70,8 +71,14 @@ final readonly class ImportOrchestrator
      */
     private function importSources(): array
     {
+        $allowedIsins = $this->allowedIsins();
         $lookback = max(0, (int) config('eix-pricing.import.lookback_minutes'));
         $this->progress->say("Discovering EIX sources from the last {$lookback} minutes...");
+
+        if ($allowedIsins !== null) {
+            $count = count($allowedIsins);
+            $this->progress->say($count === 1 ? 'Filtering to 1 ISIN.' : "Filtering to {$count} ISINs.");
+        }
 
         $sources = $this->discovery->recent();
 
@@ -86,13 +93,16 @@ final readonly class ImportOrchestrator
 
         foreach ($sources as $index => $source) {
             $this->progress->say('['.($index + 1)."/{$count}] {$source->path}");
-            $results[] = $this->import($source);
+            $results[] = $this->import($source, $allowedIsins);
         }
 
         return $results;
     }
 
-    private function import(SourceFile $source): ImportResult
+    /**
+     * @param  list<string>|null  $allowedIsins
+     */
+    private function import(SourceFile $source, ?array $allowedIsins): ImportResult
     {
         $existing = $this->imports->findBySource($source->path);
 
@@ -108,7 +118,7 @@ final readonly class ImportOrchestrator
         try {
             $result = $this->downloader->withSource(
                 $source,
-                fn (string $path): ImportResult => $this->persist($source, $importId, $path, $startedAt),
+                fn (string $path): ImportResult => $this->persist($source, $importId, $path, $startedAt, $allowedIsins),
             );
             $this->progress->say(sprintf(
                 'Finished source: %d rows in %s.',
@@ -130,12 +140,20 @@ final readonly class ImportOrchestrator
         }
     }
 
-    private function persist(SourceFile $source, int $importId, string $path, int $startedAt): ImportResult
-    {
+    /**
+     * @param  list<string>|null  $allowedIsins
+     */
+    private function persist(
+        SourceFile $source,
+        int $importId,
+        string $path,
+        int $startedAt,
+        ?array $allowedIsins,
+    ): ImportResult {
         $parsingStartedAt = hrtime(true);
-        $result = $this->imports->transaction(function () use ($source, $importId, $path): ImportResult {
+        $result = $this->imports->transaction(function () use ($source, $importId, $path, $allowedIsins): ImportResult {
             $rowsImported = $this->quotes->write(
-                $this->parser->records($path),
+                $this->parser->records($path, $allowedIsins),
                 $importId,
                 $source->timestampMilliseconds,
             );
@@ -153,6 +171,26 @@ final readonly class ImportOrchestrator
         ]);
 
         return $result;
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    private function allowedIsins(): ?array
+    {
+        $isins = [];
+
+        foreach (explode(',', (string) config('eix-pricing.import.isins')) as $value) {
+            $value = trim($value);
+
+            if ($value === '') {
+                continue;
+            }
+
+            $isins[Isin::from($value)->value] = true;
+        }
+
+        return $isins === [] ? null : array_keys($isins);
     }
 
     private function elapsedMilliseconds(int $startedAt): float

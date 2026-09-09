@@ -61,6 +61,23 @@ it('runs and idempotently skips imports through Artisan', function (): void {
         ->assertSuccessful();
 });
 
+it('imports only ISINs passed to the command', function (): void {
+    Http::fake([
+        config('eix-pricing.discovery_url') => Http::response([
+            ['fileName' => 'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz'],
+        ]),
+        '*/api/trade-file-contents*' => Http::response(
+            file_get_contents(__DIR__.'/../Fixtures/eix/pretrade.csv.gz'),
+        ),
+    ]);
+    config()->set('eix-pricing.import.isins', 'LU1094612022');
+
+    $this->artisan('eix:import', ['--isins' => 'IE000EOFR2K5'])
+        ->expectsOutputToContain('Filtering to 1 ISIN.')
+        ->expectsOutput('Imported 1 rows from pretrade/2026-09-07/Pretrade.1788759600000.csv.gz.')
+        ->assertSuccessful();
+});
+
 it('skips imports on Saturday and Sunday', function (): void {
     Date::setTestNow('2026-09-12 10:00:00');
     Http::fake();
