@@ -65,7 +65,7 @@ Observed values:
 - every inspected instrument identifier was a valid ISIN;
 - quantities and prices are decimal values with up to six fractional digits;
 - currency was `EUR` and price notation was `MONE`;
-- statuses include `TRAD`, `HALT`, `SUSP`, `QUOT` and `SOLD`;
+- statuses include `TRAD`, `HALT`, `SUSP`, `QUOT`, `SOLD` and `KO`;
 - suspended rows can contain zero quantities and zero bid/ask prices;
 - one-sided books are common: a positive bid with ask `0` (often `SOLD`, also `TRAD`);
 - no ticker or venue/MIC field exists in the pre-trade source.

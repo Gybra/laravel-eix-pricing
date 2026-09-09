@@ -106,7 +106,7 @@ final readonly class EixCsvParser
 
     private function assertMetadata(string $currency, string $notation, string $status, int $sourceRow): void
     {
-        if ($currency !== 'EUR' || $notation !== 'MONE' || preg_match('/^[A-Z]{4}$/', $status) !== 1) {
+        if ($currency !== 'EUR' || $notation !== 'MONE' || preg_match('/^[A-Z]{1,8}$/', $status) !== 1) {
             $this->malformed($sourceRow, 'quote metadata');
         }
     }

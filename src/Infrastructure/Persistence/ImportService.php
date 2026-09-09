@@ -80,6 +80,17 @@ final readonly class ImportService implements ImportServiceInterface
         });
     }
 
+    public function pruneStale(): int
+    {
+        $cutoff = Date::now()->subDays(max(1, (int) config('eix-pricing.prune.retention_days')));
+
+        return $this->transaction(
+            fn (): int => Import::query()
+                ->where('finished_at', '<=', $cutoff)
+                ->delete(),
+        );
+    }
+
     public function transaction(Closure $callback): mixed
     {
         return Import::query()->getConnection()->transaction($callback);
