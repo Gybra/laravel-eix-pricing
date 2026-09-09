@@ -31,3 +31,7 @@ metadata is finalized by the import workflow on the same connection.
 The default batch contains 1,000 records. Each row uses nine bound parameters,
 so a batch uses 9,000 parameters, safely below PostgreSQL's 65,535 parameter
 limit. The batch size remains configurable for deployment measurement.
+
+Upserts use `ON CONFLICT` on PostgreSQL and SQLite, and `ON DUPLICATE KEY UPDATE`
+on MySQL and MariaDB. The stored quote still changes only when the incoming
+`(quoted_at, source_timestamp, source_row)` tuple is greater.

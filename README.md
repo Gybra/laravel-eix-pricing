@@ -70,7 +70,8 @@ Route middleware is configurable in the published
 ## Database
 
 Package migrations load automatically and use `EIX_DB_CONNECTION`, falling
-back to the application's default connection. Run them with:
+back to the application's default connection. PostgreSQL, MySQL and MariaDB
+are supported. Run them with:
 
 ```bash
 php artisan migrate
