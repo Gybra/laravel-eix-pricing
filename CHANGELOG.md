@@ -5,6 +5,8 @@ All notable changes are documented in this file. The project follows
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-09
+
 ### Added
 
 - `eix:prune-quotes` also deletes imports whose `finished_at` is older than the retention window.
