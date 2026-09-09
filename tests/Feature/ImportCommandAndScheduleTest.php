@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Http;
@@ -52,7 +53,6 @@ it('runs and idempotently skips imports through Artisan', function (): void {
         ->expectsOutputToContain('Downloaded')
         ->expectsOutputToContain('Parsing CSV and writing quote batches...')
         ->expectsOutputToContain('Wrote batch 1:')
-        ->expectsOutputToContain('Finished source:')
         ->expectsOutput('Imported 6 rows from pretrade/2026-09-07/Pretrade.1788759600000.csv.gz.')
         ->assertSuccessful();
 
@@ -62,20 +62,39 @@ it('runs and idempotently skips imports through Artisan', function (): void {
 });
 
 it('imports only ISINs passed to the command', function (): void {
-    Http::fake([
-        config('eix-pricing.discovery_url') => Http::response([
-            ['fileName' => 'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz'],
-        ]),
-        '*/api/trade-file-contents*' => Http::response(
-            file_get_contents(__DIR__.'/../Fixtures/eix/pretrade.csv.gz'),
-        ),
-    ]);
+    $fixture = file_get_contents(__DIR__.'/../Fixtures/eix/pretrade.csv.gz');
+
+    Http::fake(function (Request $request) use ($fixture) {
+        if (str_contains($request->url(), 'trade-files')) {
+            return Http::response([
+                ['fileName' => 'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz'],
+            ]);
+        }
+
+        return Http::response($fixture);
+    });
     config()->set('eix-pricing.import.isins', 'LU1094612022');
 
     $this->artisan('eix:import', ['--isins' => 'IE000EOFR2K5'])
         ->expectsOutputToContain('Filtering to 1 ISIN.')
         ->expectsOutput('Imported 1 rows from pretrade/2026-09-07/Pretrade.1788759600000.csv.gz.')
         ->assertSuccessful();
+
+    config()->set('eix-pricing.import.isins', null);
+
+    $this->artisan('eix:import')
+        ->expectsOutput('Imported 6 rows from pretrade/2026-09-07/Pretrade.1788759600000.csv.gz.')
+        ->assertSuccessful();
+});
+
+it('rejects invalid ISINs passed to the command', function (): void {
+    Http::fake();
+
+    $this->artisan('eix:import', ['--isins' => 'NOTANISIN'])
+        ->expectsOutput('Invalid ISIN.')
+        ->assertFailed();
+
+    Http::assertNothingSent();
 });
 
 it('skips imports on Saturday and Sunday', function (): void {

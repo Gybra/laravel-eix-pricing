@@ -7,7 +7,7 @@ All notable changes are documented in this file. The project follows
 
 ### Added
 
-- Optional `EIX_IMPORT_ISINS` / `eix:import --isins=` comma-separated allow list; other CSV rows are discarded.
+- Optional `EIX_IMPORT_ISINS` / `eix:import --isins=` comma-separated allow list; other CSV rows are discarded. `--isins=` does not mark the source complete.
 
 ### Changed
 

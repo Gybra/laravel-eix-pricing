@@ -38,7 +38,7 @@ final readonly class ImportOrchestrator
     /**
      * @return list<ImportResult>
      */
-    public function run(): array
+    public function run(?string $isins = null): array
     {
         if (Date::now()->isWeekend()) {
             return [];
@@ -60,7 +60,7 @@ final readonly class ImportOrchestrator
         }
 
         try {
-            return $this->importSources();
+            return $this->importSources($isins);
         } finally {
             $lock->release();
         }
@@ -69,9 +69,9 @@ final readonly class ImportOrchestrator
     /**
      * @return list<ImportResult>
      */
-    private function importSources(): array
+    private function importSources(?string $isins): array
     {
-        $allowedIsins = $this->allowedIsins();
+        $allowedIsins = $this->allowedIsins($isins);
         $lookback = max(0, (int) config('eix-pricing.import.lookback_minutes'));
         $this->progress->say("Discovering EIX sources from the last {$lookback} minutes...");
 
@@ -93,7 +93,7 @@ final readonly class ImportOrchestrator
 
         foreach ($sources as $index => $source) {
             $this->progress->say('['.($index + 1)."/{$count}] {$source->path}");
-            $results[] = $this->import($source, $allowedIsins);
+            $results[] = $this->import($source, $allowedIsins, $isins === null);
         }
 
         return $results;
@@ -102,13 +102,11 @@ final readonly class ImportOrchestrator
     /**
      * @param  list<string>|null  $allowedIsins
      */
-    private function import(SourceFile $source, ?array $allowedIsins): ImportResult
+    private function import(SourceFile $source, ?array $allowedIsins, bool $complete): ImportResult
     {
         $existing = $this->imports->findBySource($source->path);
 
         if ($existing?->status === 'completed') {
-            $this->progress->say('Already imported. Skipping.');
-
             return new ImportResult($source->path, 0, true);
         }
 
@@ -116,17 +114,17 @@ final readonly class ImportOrchestrator
         $startedAt = hrtime(true);
 
         try {
-            $result = $this->downloader->withSource(
+            return $this->downloader->withSource(
                 $source,
-                fn (string $path): ImportResult => $this->persist($source, $importId, $path, $startedAt, $allowedIsins),
+                fn (string $path): ImportResult => $this->persist(
+                    $source,
+                    $importId,
+                    $path,
+                    $startedAt,
+                    $allowedIsins,
+                    $complete,
+                ),
             );
-            $this->progress->say(sprintf(
-                'Finished source: %d rows in %s.',
-                $result->rowsImported,
-                $this->progress->duration($this->elapsedMilliseconds($startedAt)),
-            ));
-
-            return $result;
         } catch (Throwable $exception) {
             $this->progress->say('Import failed: '.$exception->getMessage());
 
@@ -149,16 +147,19 @@ final readonly class ImportOrchestrator
         string $path,
         int $startedAt,
         ?array $allowedIsins,
+        bool $complete,
     ): ImportResult {
         $parsingStartedAt = hrtime(true);
-        $result = $this->imports->transaction(function () use ($source, $importId, $path, $allowedIsins): ImportResult {
+        $result = $this->imports->transaction(function () use ($source, $importId, $path, $allowedIsins, $complete): ImportResult {
             $rowsImported = $this->quotes->write(
                 $this->parser->records($path, $allowedIsins),
                 $importId,
                 $source->timestampMilliseconds,
             );
 
-            $this->imports->complete($importId, $rowsImported);
+            if ($complete) {
+                $this->imports->complete($importId, $rowsImported);
+            }
 
             return new ImportResult($source->path, $rowsImported, false);
         });
@@ -176,11 +177,11 @@ final readonly class ImportOrchestrator
     /**
      * @return list<string>|null
      */
-    private function allowedIsins(): ?array
+    private function allowedIsins(?string $override): ?array
     {
         $isins = [];
 
-        foreach (explode(',', (string) config('eix-pricing.import.isins')) as $value) {
+        foreach (explode(',', $override ?? (string) config('eix-pricing.import.isins')) as $value) {
             $value = trim($value);
 
             if ($value === '') {

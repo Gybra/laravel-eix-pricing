@@ -91,7 +91,10 @@ php artisan eix:import --isins=IE000EOFR2K5,IE00BMTM6B32
 Each run imports every uncompleted source whose timestamp falls inside
 `EIX_IMPORT_LOOKBACK_MINUTES` (default 30). Set `EIX_IMPORT_ISINS` or pass
 `--isins=` to keep only those ISINs and discard the rest of each CSV.
-`--isins=` overrides the environment value for that run. The package schedules the same
+`--isins=` overrides the environment value for that run and does not mark the
+source complete, so a later unfiltered import still reads the rest of the file.
+`EIX_IMPORT_ISINS` is a standing allow list and does mark the source complete.
+The package schedules the same
 command every 30 minutes on weekdays with overlap protection. At 01:00 on
 weekdays it also runs `eix:prune-quotes`, deleting quotes whose `imported_at`
 and imports whose `finished_at` are older than `EIX_PRUNE_RETENTION_DAYS`

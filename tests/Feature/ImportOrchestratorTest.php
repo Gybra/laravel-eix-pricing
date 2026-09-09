@@ -31,14 +31,17 @@ afterEach(function (): void {
 
 function fakeSuccessfulImport(): void
 {
-    Http::fake([
-        config('eix-pricing.discovery_url') => Http::response([
-            ['fileName' => 'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz'],
-        ]),
-        '*/api/trade-file-contents*' => Http::response(
-            file_get_contents(__DIR__.'/../Fixtures/eix/pretrade.csv.gz'),
-        ),
-    ]);
+    $fixture = file_get_contents(__DIR__.'/../Fixtures/eix/pretrade.csv.gz');
+
+    Http::fake(function (Request $request) use ($fixture) {
+        if (str_contains($request->url(), 'trade-files')) {
+            return Http::response([
+                ['fileName' => 'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz'],
+            ]);
+        }
+
+        return Http::response($fixture);
+    });
 }
 
 it('imports a source, completes its metadata, and logs timing metrics', function (): void {
@@ -101,8 +104,28 @@ it('imports only the configured ISINs', function (): void {
     $results = app(ImportOrchestrator::class)->run();
 
     expect($results[0]->rowsImported)->toBe(3)
+        ->and(DB::connection('package_testing')->table('eix_imports')->value('status'))->toBe('completed')
         ->and(DB::connection('package_testing')->table('eix_quotes')->orderBy('isin')->pluck('isin')->all())
         ->toBe(['IE000EOFR2K5', 'IE00BMTM6B32']);
+});
+
+it('does not complete a source when an ISIN override is passed', function (): void {
+    fakeSuccessfulImport();
+
+    $filtered = app(ImportOrchestrator::class)->run('IE000EOFR2K5');
+    $import = DB::connection('package_testing')->table('eix_imports')->first();
+
+    expect($filtered[0]->rowsImported)->toBe(1)
+        ->and($import->status)->toBe('running')
+        ->and(DB::connection('package_testing')->table('eix_quotes')->pluck('isin')->all())
+        ->toBe(['IE000EOFR2K5']);
+
+    $full = app(ImportOrchestrator::class)->run();
+
+    expect($full[0]->skipped)->toBeFalse()
+        ->and($full[0]->rowsImported)->toBe(6)
+        ->and(DB::connection('package_testing')->table('eix_imports')->value('status'))->toBe('completed')
+        ->and(DB::connection('package_testing')->table('eix_quotes')->count())->toBe(5);
 });
 
 it('rejects invalid configured import ISINs before discovery', function (): void {

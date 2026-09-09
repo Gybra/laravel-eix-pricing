@@ -37,12 +37,8 @@ final class ImportEixCommand extends Command
 
         $isins = $this->option('isins');
 
-        if (is_string($isins) && $isins !== '') {
-            config(['eix-pricing.import.isins' => $isins]);
-        }
-
         try {
-            $results = $orchestrator->run();
+            $results = $orchestrator->run(filled($isins) ? (string) $isins : null);
         } catch (ImportAlreadyRunning $exception) {
             $this->warn($exception->getMessage());
 

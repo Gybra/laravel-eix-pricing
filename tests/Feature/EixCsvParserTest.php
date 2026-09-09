@@ -54,6 +54,7 @@ it('skips records whose ISIN is not allowed', function (): void {
         'Trading day & Trading time UTC,Instrument Identifier,Bid Quantity,Ask Quantity,Bid Price,Ask Price,Price Currency,Price Notation,Status',
         '2026-09-07T20:36:01.000Z,IE000EOFR2K5,1200,1200,4.461500,4.623500,EUR,MONE,TRAD',
         '2026-09-07T20:36:02.000Z,INVALID,1200,1200,4.461500,4.623500,EUR,MONE,TRAD',
+        'truncated-row',
         '2026-09-07T20:36:03.000Z,LU1094612022,1600,1600,19.590000,19.994500,EUR,MONE,HALT',
         '',
     ]));
