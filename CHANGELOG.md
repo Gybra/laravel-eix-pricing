@@ -5,6 +5,8 @@ All notable changes are documented in this file. The project follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-10
+
 ### Added
 
 - Optional `EIX_IMPORT_ISINS` / `eix:import --isins=` comma-separated allow list; other CSV rows are discarded. `--isins=` does not mark the source complete.
@@ -18,7 +20,7 @@ All notable changes are documented in this file. The project follows
 
 ### Removed
 
-- **Breaking:** Removed `EIX_STORAGE_DISK` and `EIX_STORAGE_PREFIX` in this unreleased version. Leftover environment variables and published `storage` configuration keys are ignored.
+- **Breaking:** Removed `EIX_STORAGE_DISK` and `EIX_STORAGE_PREFIX`. Leftover environment variables and published `storage` configuration keys are ignored.
 
 ## [0.3.0] - 2026-09-09
 
