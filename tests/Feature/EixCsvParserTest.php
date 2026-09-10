@@ -49,6 +49,29 @@ it('parses quoted CSV fields', function (): void {
     }
 });
 
+it('skips records whose ISIN is not allowed', function (): void {
+    $path = temporaryGzip(implode("\n", [
+        'Trading day & Trading time UTC,Instrument Identifier,Bid Quantity,Ask Quantity,Bid Price,Ask Price,Price Currency,Price Notation,Status',
+        '2026-09-07T20:36:01.000Z,IE000EOFR2K5,1200,1200,4.461500,4.623500,EUR,MONE,TRAD',
+        '2026-09-07T20:36:02.000Z,INVALID,1200,1200,4.461500,4.623500,EUR,MONE,TRAD',
+        'truncated-row',
+        '2026-09-07T20:36:03.000Z,LU1094612022,1600,1600,19.590000,19.994500,EUR,MONE,HALT',
+        '',
+    ]));
+
+    try {
+        $isins = [];
+
+        foreach (app(EixCsvParser::class)->records($path, ['IE000EOFR2K5']) as $record) {
+            $isins[] = $record->isin;
+        }
+
+        expect($isins)->toBe(['IE000EOFR2K5']);
+    } finally {
+        unlink($path);
+    }
+});
+
 it('rejects malformed headers', function (): void {
     $path = temporaryGzip("wrong,header\n");
 
@@ -136,6 +159,24 @@ it('accepts a knocked-out book with a two-letter status', function (): void {
             ->and($record->bid)->toBe('0.001')
             ->and($record->ask)->toBe('0.000')
             ->and($record->price)->toBe('0.0005000');
+    } finally {
+        unlink($path);
+    }
+});
+
+it('does not parse later rows until iteration advances', function (): void {
+    $path = temporaryGzip(implode("\n", [
+        'Trading day & Trading time UTC,Instrument Identifier,Bid Quantity,Ask Quantity,Bid Price,Ask Price,Price Currency,Price Notation,Status',
+        '2026-09-07T20:36:01.000Z,IE000EOFR2K5,1200,1200,4.461500,4.623500,EUR,MONE,TRAD',
+        '2026-09-07T20:36:02.000Z,INVALID,1200,1200,4.461500,4.623500,EUR,MONE,TRAD',
+        '',
+    ]));
+
+    try {
+        $records = app(EixCsvParser::class)->records($path);
+
+        expect($records->current()->sourceRow)->toBe(2)
+            ->and(fn () => $records->next())->toThrow(UnexpectedValueException::class, 'row 3');
     } finally {
         unlink($path);
     }

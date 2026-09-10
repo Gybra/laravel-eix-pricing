@@ -29,10 +29,12 @@ final readonly class EixCsvParser
     ];
 
     /**
+     * @param  list<string>|null  $isins
      * @return Generator<int, QuoteRecord>
      */
-    public function records(string $path): Generator
+    public function records(string $path, ?array $isins = null): Generator
     {
+        $allowed = $isins === null || $isins === [] ? null : array_fill_keys($isins, true);
         $handle = fopen('compress.zlib://'.$path, 'rb');
 
         if ($handle === false) {
@@ -49,7 +51,7 @@ final readonly class EixCsvParser
             while (($values = fgetcsv($handle, null, ',', '"', '')) !== false) {
                 $sourceRow++;
 
-                if ($values === [null]) {
+                if ($values === [null] || ($allowed !== null && ! $this->isAllowed($values, $allowed))) {
                     continue;
                 }
 
@@ -58,6 +60,15 @@ final readonly class EixCsvParser
         } finally {
             fclose($handle);
         }
+    }
+
+    /**
+     * @param  array<int, string|null>  $values
+     * @param  array<string, true>  $allowed
+     */
+    private function isAllowed(array $values, array $allowed): bool
+    {
+        return isset($allowed[strtoupper(trim((string) ($values[1] ?? '')))]);
     }
 
     /**

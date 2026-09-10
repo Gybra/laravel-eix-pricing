@@ -25,17 +25,13 @@ return [
         'connection' => env('EIX_DB_CONNECTION'),
     ],
 
-    'storage' => [
-        'disk' => env('EIX_STORAGE_DISK', 'local'),
-        'prefix' => env('EIX_STORAGE_PREFIX', 'eix'),
-    ],
-
     'import' => [
-        'batch_size' => (int) env('EIX_IMPORT_BATCH_SIZE', 1000),
+        'batch_size' => (int) env('EIX_IMPORT_BATCH_SIZE', 2500),
         'lock_store' => env('EIX_IMPORT_LOCK_STORE'),
         'lock_name' => env('EIX_IMPORT_LOCK_NAME', 'eix-pricing:import'),
         'lock_seconds' => (int) env('EIX_IMPORT_LOCK_SECONDS', 10800),
         'lookback_minutes' => (int) env('EIX_IMPORT_LOOKBACK_MINUTES', 30),
+        'isins' => env('EIX_IMPORT_ISINS'),
     ],
 
     'schedule' => [

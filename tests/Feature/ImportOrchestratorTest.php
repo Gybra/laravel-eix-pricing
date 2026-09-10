@@ -9,14 +9,12 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
     Schema::connection('package_testing')->dropAllTables();
     $this->artisan('migrate:fresh')->assertSuccessful();
-    Storage::fake('eix-test');
-    config()->set('eix-pricing.storage.disk', 'eix-test');
     config()->set('eix-pricing.http.retries', 0);
     config()->set('eix-pricing.import.lock_store', 'array');
     config()->set('eix-pricing.import.lock_name', 'eix-import-test');
@@ -33,18 +31,22 @@ afterEach(function (): void {
 
 function fakeSuccessfulImport(): void
 {
-    Http::fake([
-        config('eix-pricing.discovery_url') => Http::response([
-            ['fileName' => 'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz'],
-        ]),
-        '*/api/trade-file-contents*' => Http::response(
-            file_get_contents(__DIR__.'/../Fixtures/eix/pretrade.csv.gz'),
-        ),
-    ]);
+    $fixture = file_get_contents(__DIR__.'/../Fixtures/eix/pretrade.csv.gz');
+
+    Http::fake(function (Request $request) use ($fixture) {
+        if (str_contains($request->url(), 'trade-files')) {
+            return Http::response([
+                ['fileName' => 'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz'],
+            ]);
+        }
+
+        return Http::response($fixture);
+    });
 }
 
-it('imports a source and completes its metadata', function (): void {
+it('imports a source, completes its metadata, and logs timing metrics', function (): void {
     fakeSuccessfulImport();
+    Log::spy();
 
     $results = app(ImportOrchestrator::class)->run();
     $import = DB::connection('package_testing')->table('eix_imports')->first();
@@ -57,7 +59,13 @@ it('imports a source and completes its metadata', function (): void {
         ->and($import->finished_at)->not->toBeNull()
         ->and(DB::connection('package_testing')->table('eix_quotes')->count())->toBe(5);
 
-    Storage::disk('eix-test')->assertMissing('eix/Pretrade.1788759600000.csv.gz');
+    Log::shouldHaveReceived('info')->withArgs(
+        fn (string $message, array $context): bool => $message === 'EIX source imported'
+            && $context['source'] === 'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz'
+            && $context['rows_parsed'] === 6
+            && $context['parsing_import_duration_ms'] >= 0
+            && $context['total_import_duration_ms'] >= $context['parsing_import_duration_ms'],
+    )->once();
 });
 
 it('imports every uncompleted source in the lookback window', function (): void {
@@ -87,6 +95,47 @@ it('imports every uncompleted source in the lookback window', function (): void 
             'pretrade/2026-09-07/Pretrade.1788758400000.csv.gz',
             'pretrade/2026-09-07/Pretrade.1788759600000.csv.gz',
         ]);
+});
+
+it('imports only the configured ISINs', function (): void {
+    fakeSuccessfulImport();
+    config()->set('eix-pricing.import.isins', 'IE000EOFR2K5, ie00bmtm6b32');
+
+    $results = app(ImportOrchestrator::class)->run();
+
+    expect($results[0]->rowsImported)->toBe(3)
+        ->and(DB::connection('package_testing')->table('eix_imports')->value('status'))->toBe('completed')
+        ->and(DB::connection('package_testing')->table('eix_quotes')->orderBy('isin')->pluck('isin')->all())
+        ->toBe(['IE000EOFR2K5', 'IE00BMTM6B32']);
+});
+
+it('does not complete a source when an ISIN override is passed', function (): void {
+    fakeSuccessfulImport();
+
+    $filtered = app(ImportOrchestrator::class)->run('IE000EOFR2K5');
+    $import = DB::connection('package_testing')->table('eix_imports')->first();
+
+    expect($filtered[0]->rowsImported)->toBe(1)
+        ->and($import->status)->toBe('running')
+        ->and(DB::connection('package_testing')->table('eix_quotes')->pluck('isin')->all())
+        ->toBe(['IE000EOFR2K5']);
+
+    $full = app(ImportOrchestrator::class)->run();
+
+    expect($full[0]->skipped)->toBeFalse()
+        ->and($full[0]->rowsImported)->toBe(6)
+        ->and(DB::connection('package_testing')->table('eix_imports')->value('status'))->toBe('completed')
+        ->and(DB::connection('package_testing')->table('eix_quotes')->count())->toBe(5);
+});
+
+it('rejects invalid configured import ISINs before discovery', function (): void {
+    Http::fake();
+    config()->set('eix-pricing.import.isins', 'NOTANISIN');
+
+    expect(fn () => app(ImportOrchestrator::class)->run())
+        ->toThrow(InvalidArgumentException::class, 'Invalid ISIN.');
+
+    Http::assertNothingSent();
 });
 
 it('skips a source that already completed', function (): void {
@@ -147,7 +196,6 @@ it('rolls back quotes, marks failure, and retries the same source', function ():
     expect($failedImport->status)->toBe('failed')
         ->and($failedImport->failure)->toContain('row 3')
         ->and(DB::connection('package_testing')->table('eix_quotes')->count())->toBe(0);
-    Storage::disk('eix-test')->assertMissing('eix/Pretrade.1788759600000.csv.gz');
 
     $results = app(ImportOrchestrator::class)->run();
 

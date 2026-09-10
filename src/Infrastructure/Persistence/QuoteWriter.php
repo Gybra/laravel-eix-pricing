@@ -7,11 +7,15 @@ namespace Gybra\EixPricing\Infrastructure\Persistence;
 use DateTimeImmutable;
 use DateTimeZone;
 use Gybra\EixPricing\Domain\QuoteRecord;
+use Gybra\EixPricing\Infrastructure\Console\ProgressReporter;
 use Gybra\EixPricing\Infrastructure\Persistence\Models\Quote as QuoteModel;
 use Illuminate\Database\Connection;
+use Illuminate\Support\Facades\Log;
 
 final readonly class QuoteWriter
 {
+    public function __construct(private ?ProgressReporter $progress = null) {}
+
     /**
      * @param  iterable<QuoteRecord>  $records
      */
@@ -21,31 +25,95 @@ final readonly class QuoteWriter
         $connection = $model->getConnection();
         $table = $connection->getQueryGrammar()->wrapTable($model->getTable());
 
-        return $connection->transaction(function () use ($connection, $table, $records, $importId, $sourceTimestamp): int {
-            $batch = [];
-            $written = 0;
-            $batchSize = max(1, (int) config('eix-pricing.import.batch_size'));
+        $batch = [];
+        $rowsParsed = 0;
+        $rowsSubmitted = 0;
+        $databaseBatches = 0;
+        $databaseWriteDuration = 0.0;
+        $batchSize = max(1, (int) config('eix-pricing.import.batch_size'));
 
-            foreach ($records as $record) {
-                $batch[] = $record;
-                $written++;
+        foreach ($records as $record) {
+            $batch[] = $record;
+            $rowsParsed++;
 
-                if (count($batch) === $batchSize) {
-                    $this->upsert($connection, $table, $batch, $importId, $sourceTimestamp);
-                    $batch = [];
-                }
+            if (count($batch) === $batchSize) {
+                [$submitted, $duration] = $this->writeBatch(
+                    $connection,
+                    $table,
+                    $batch,
+                    $importId,
+                    $sourceTimestamp,
+                    $databaseBatches + 1,
+                    $rowsParsed,
+                );
+                $rowsSubmitted += $submitted;
+                $databaseWriteDuration += $duration;
+                $databaseBatches++;
+                $batch = [];
             }
+        }
 
-            if ($batch !== []) {
-                $this->upsert($connection, $table, $batch, $importId, $sourceTimestamp);
-            }
+        if ($batch !== []) {
+            [$submitted, $duration] = $this->writeBatch(
+                $connection,
+                $table,
+                $batch,
+                $importId,
+                $sourceTimestamp,
+                $databaseBatches + 1,
+                $rowsParsed,
+            );
+            $rowsSubmitted += $submitted;
+            $databaseWriteDuration += $duration;
+            $databaseBatches++;
+        }
 
-            return $written;
-        });
+        $databaseWriteDuration = round($databaseWriteDuration, 3);
+
+        Log::info('EIX quote batches written', [
+            'import_id' => $importId,
+            'rows_parsed' => $rowsParsed,
+            'rows_submitted' => $rowsSubmitted,
+            'database_batches' => $databaseBatches,
+            'database_write_duration_ms' => $databaseWriteDuration,
+        ]);
+
+        return $rowsParsed;
     }
 
     /**
      * @param  list<QuoteRecord>  $records
+     * @return array{int, float}
+     */
+    private function writeBatch(
+        Connection $connection,
+        string $table,
+        array $records,
+        int $importId,
+        int $sourceTimestamp,
+        int $batchNumber,
+        int $rowsParsed,
+    ): array {
+        $batchCount = count($records);
+        [$submitted, $duration] = $this->upsert($connection, $table, $records, $importId, $sourceTimestamp);
+
+        if ($this->progress !== null) {
+            $this->progress->say(sprintf(
+                'Wrote batch %d: %d rows (%d unique) in %s. %d rows so far.',
+                $batchNumber,
+                $batchCount,
+                $submitted,
+                $this->progress->duration($duration),
+                $rowsParsed,
+            ));
+        }
+
+        return [$submitted, $duration];
+    }
+
+    /**
+     * @param  list<QuoteRecord>  $records
+     * @return array{int, float}
      */
     private function upsert(
         Connection $connection,
@@ -53,7 +121,7 @@ final readonly class QuoteWriter
         array $records,
         int $importId,
         int $sourceTimestamp,
-    ): void {
+    ): array {
         $records = $this->latestPerIsin($records);
         $driver = $connection->getDriverName();
         $placeholders = implode(', ', array_fill(
@@ -78,7 +146,10 @@ final readonly class QuoteWriter
             );
         }
 
+        $startedAt = hrtime(true);
         $connection->statement(sprintf($this->insertSql($table, $driver), $placeholders), $bindings);
+
+        return [count($records), (hrtime(true) - $startedAt) / 1_000_000];
     }
 
     private function quotedAtValue(DateTimeImmutable $quotedAt, string $driver): string
@@ -134,9 +205,13 @@ final readonly class QuoteWriter
             ." OR (VALUES(quoted_at) = {$table}.quoted_at AND VALUES(source_timestamp) = {$table}.source_timestamp AND VALUES(source_row) > {$table}.source_row)";
 
         $assignments = [];
+        $first = true;
 
         foreach (['import_id', 'bid', 'ask', 'price', 'status', 'quoted_at', 'source_timestamp', 'source_row', 'imported_at'] as $column) {
-            $assignments[] = "{$column} = IF({$newer}, VALUES({$column}), {$table}.{$column})";
+            // MySQL/MariaDB re-evaluate IF() after earlier assignments; freeze the predicate once.
+            $predicate = $first ? "@eix_newer := ({$newer})" : '@eix_newer';
+            $assignments[] = "{$column} = IF({$predicate}, VALUES({$column}), {$table}.{$column})";
+            $first = false;
         }
 
         $set = implode(",\n                ", $assignments);

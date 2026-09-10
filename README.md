@@ -7,12 +7,11 @@ the latest quote by ISIN.
 
 ## Architecture
 
-The package discovers EIX sources from the last 30 minutes, streams each file
-through local and configured transient storage, parses gzip/CSV records lazily,
-and conditionally upserts current quotes in bounded batches. Import metadata
-and cache locks make retries and overlapping scheduler instances safe. The host
-application only provides Laravel, database, cache, filesystem and scheduler
-infrastructure.
+The package discovers EIX sources from the last 30 minutes, streams each gzip
+to a local temporary file, parses gzip/CSV records lazily, and conditionally
+upserts current quotes in bounded batches. Import metadata and cache locks make
+retries and overlapping scheduler instances safe. The host application only
+provides Laravel, database, cache and scheduler infrastructure.
 
 ## Requirements
 
@@ -34,8 +33,8 @@ php artisan vendor:publish --tag=eix-pricing-config
 
 ## Configuration
 
-Runtime settings use the `EIX_` environment prefix. Source objects are removed
-after every import attempt.
+Runtime settings use the `EIX_` environment prefix. Local temporary source
+files are removed after every import attempt.
 
 | Setting | Default |
 | --- | --- |
@@ -47,13 +46,12 @@ after every import attempt.
 | `EIX_HTTP_RETRIES` | `3` |
 | `EIX_HTTP_RETRY_DELAY_MS` | `1000` milliseconds |
 | `EIX_DB_CONNECTION` | Laravel default connection |
-| `EIX_STORAGE_DISK` | `local` |
-| `EIX_STORAGE_PREFIX` | `eix` |
-| `EIX_IMPORT_BATCH_SIZE` | `1000` |
+| `EIX_IMPORT_BATCH_SIZE` | `2500` |
 | `EIX_IMPORT_LOCK_STORE` | Laravel default cache store |
 | `EIX_IMPORT_LOCK_NAME` | `eix-pricing:import` |
 | `EIX_IMPORT_LOCK_SECONDS` | `10800` seconds |
 | `EIX_IMPORT_LOOKBACK_MINUTES` | `30` minutes |
+| `EIX_IMPORT_ISINS` | Empty (import every ISIN) |
 | `EIX_SCHEDULE_ENABLED` | `true` |
 | `EIX_SCHEDULE_CRON` | Every 30 minutes, Monday–Friday |
 | `EIX_SCHEDULE_OVERLAP_MINUTES` | `180` minutes |
@@ -87,10 +85,16 @@ Run an import manually with:
 
 ```bash
 php artisan eix:import
+php artisan eix:import --isins=IE000EOFR2K5,IE00BMTM6B32
 ```
 
 Each run imports every uncompleted source whose timestamp falls inside
-`EIX_IMPORT_LOOKBACK_MINUTES` (default 30). The package schedules the same
+`EIX_IMPORT_LOOKBACK_MINUTES` (default 30). Set `EIX_IMPORT_ISINS` or pass
+`--isins=` to keep only those ISINs and discard the rest of each CSV.
+`--isins=` overrides the environment value for that run and does not mark the
+source complete, so a later unfiltered import still reads the rest of the file.
+`EIX_IMPORT_ISINS` is a standing allow list and does mark the source complete.
+The package schedules the same
 command every 30 minutes on weekdays with overlap protection. At 01:00 on
 weekdays it also runs `eix:prune-quotes`, deleting quotes whose `imported_at`
 and imports whose `finished_at` are older than `EIX_PRUNE_RETENTION_DAYS`
@@ -152,19 +156,20 @@ The verified EIX discovery, download and CSV formats are documented in
 provides ISINs but no authoritative ticker mapping, so the initial release is
 ISIN-only.
 
-## Supabase PostgreSQL and Cloudflare R2
+## Deployment
 
-Use Laravel's normal PostgreSQL and S3-compatible filesystem configuration.
-See [`docs/deployment.md`](docs/deployment.md) for placeholder-only Supabase
-and R2 examples. R2 objects are transient and the credentials require delete
-permission.
+Use Laravel's normal PostgreSQL, MySQL or MariaDB configuration. The importer
+does not require object storage. See [`docs/deployment.md`](docs/deployment.md)
+for database and scheduler examples.
 
 ## Large-file troubleshooting
 
-The importer never loads a complete gzip or CSV source into memory. Ensure the
-local temporary volume has enough free space for the compressed source and set
-the download timeout and import lock lifetime above the measured import time.
-See [`docs/troubleshooting.md`](docs/troubleshooting.md).
+The importer never loads a complete gzip or CSV source into memory. It streams
+the compressed download to the system temporary directory, decompresses and
+parses it lazily, writes bounded database batches, and always removes the local
+file. Ensure the temporary volume has enough free space and set the download
+timeout and import lock lifetime above the measured import time. See
+[`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 ## Development
 

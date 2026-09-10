@@ -23,13 +23,20 @@ final class PruneQuotesCommand extends Command
             return self::SUCCESS;
         }
 
+        $cutoff = Date::now()->subDays(max(1, (int) config('eix-pricing.prune.retention_days')));
+        $cutoffLabel = $cutoff->utc()->toDateTimeString().' UTC';
+
+        $this->line("Pruning quotes imported on or before {$cutoffLabel}...");
         $quotesDeleted = $quotes->pruneStale();
         $quoteLabel = $quotesDeleted === 1 ? 'quote' : 'quotes';
         $this->info("Deleted {$quotesDeleted} stale {$quoteLabel}.");
 
+        $this->line("Pruning imports finished on or before {$cutoffLabel}...");
         $importsDeleted = $imports->pruneStale();
         $importLabel = $importsDeleted === 1 ? 'import' : 'imports';
         $this->info("Deleted {$importsDeleted} stale {$importLabel}.");
+
+        $this->info('Prune finished.');
 
         return self::SUCCESS;
     }

@@ -1,13 +1,15 @@
 # Deployment configuration
 
 Use application environment variables or the published package config. Never
-commit real connection strings or storage credentials.
+commit real connection strings or credentials. The package requires a database
+and a lock-capable Laravel cache store; object storage is not required.
 
-## Supabase PostgreSQL
+## PostgreSQL
 
-Laravel uses its standard `pgsql` connection. For a persistent application
-backend, use a direct connection when network support permits or the Supabase
-Session Pooler. Do not use Transaction Pooler as the default ORM connection.
+Use Laravel's standard `pgsql` connection. Managed PostgreSQL services such as
+Supabase work through the same configuration. For Supabase, prefer a direct
+connection where network support permits or the Session Pooler; do not use the
+Transaction Pooler as the default ORM connection.
 
 ```dotenv
 DB_CONNECTION=pgsql
@@ -36,31 +38,12 @@ DB_PASSWORD=<PASSWORD>
 EIX_DB_CONNECTION=mysql
 ```
 
-## Cloudflare R2
+## Local temporary storage
 
-Install Laravel's S3 Flysystem adapter in the host application:
-
-```bash
-composer require league/flysystem-aws-s3-v3
-```
-
-Configure the normal Laravel `s3` disk with R2 values:
-
-```dotenv
-FILESYSTEM_DISK=s3
-AWS_ACCESS_KEY_ID=<R2_ACCESS_KEY_ID>
-AWS_SECRET_ACCESS_KEY=<R2_SECRET_ACCESS_KEY>
-AWS_DEFAULT_REGION=auto
-AWS_BUCKET=<R2_BUCKET>
-AWS_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
-AWS_USE_PATH_STYLE_ENDPOINT=false
-EIX_STORAGE_DISK=s3
-EIX_STORAGE_PREFIX=eix
-```
-
-The package uploads each source only while its import runs and deletes it in a
-`finally` block after success or failure. The R2 credentials therefore require
-read, write and delete access to the configured prefix.
+Each compressed source is streamed to the system temporary directory, parsed
+from that local file, and deleted after success or failure. Size the temporary
+volume for one compressed EIX source. No Laravel filesystem disk, S3 adapter or
+object-storage credentials are needed.
 
 ## Scheduler and locks
 

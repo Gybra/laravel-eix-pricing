@@ -5,6 +5,21 @@ All notable changes are documented in this file. The project follows
 
 ## [Unreleased]
 
+### Added
+
+- Optional `EIX_IMPORT_ISINS` / `eix:import --isins=` comma-separated allow list; other CSV rows are discarded. `--isins=` does not mark the source complete.
+
+### Changed
+
+- Removed transient Laravel filesystem staging; imports now use only a streamed local temporary gzip file.
+- Increased the default import batch size from 1,000 to 2,500 rows.
+- Added structured timing, size, row and database-batch metrics to import logs.
+- `eix:import` and `eix:prune-quotes` print step-by-step terminal progress.
+
+### Removed
+
+- **Breaking:** Removed `EIX_STORAGE_DISK` and `EIX_STORAGE_PREFIX` in this unreleased version. Leftover environment variables and published `storage` configuration keys are ignored.
+
 ## [0.3.0] - 2026-09-09
 
 ### Added

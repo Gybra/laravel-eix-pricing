@@ -9,6 +9,7 @@ use Gybra\EixPricing\Infrastructure\Persistence\Models\Import;
 use Gybra\EixPricing\Infrastructure\Persistence\QuoteWriter;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use ReflectionMethod;
 
@@ -56,6 +57,7 @@ it('keeps the newest quote across unordered batches and deterministic ties', fun
     ];
 
     $batchBindingCounts = [];
+    Log::spy();
     DB::connection('package_testing')->listen(
         function (QueryExecuted $query) use (&$batchBindingCounts): void {
             if (str_contains($query->sql, 'INSERT INTO') && str_contains($query->sql, 'eix_quotes')) {
@@ -78,6 +80,44 @@ it('keeps the newest quote across unordered batches and deterministic ties', fun
         ->and((float) $quotes->first()->bid)->toBe(4.5)
         ->and($quotes->first()->source_row)->toBe(5)
         ->and(Schema::connection('testing')->hasTable('eix_quotes'))->toBeFalse();
+
+    Log::shouldHaveReceived('info')->once()->withArgs(
+        fn (string $message, array $context): bool => $message === 'EIX quote batches written'
+            && $context['import_id'] === $importId
+            && $context['rows_parsed'] === 4
+            && $context['rows_submitted'] === 3
+            && $context['database_batches'] === 2
+            && $context['database_write_duration_ms'] >= 0,
+    );
+});
+
+it('keeps configured database batches bounded', function (): void {
+    config()->set('eix-pricing.import.batch_size', 2500);
+    $importId = createImport('pretrade/bounded.csv.gz');
+    $records = (function (): Generator {
+        for ($row = 1; $row <= 2501; $row++) {
+            yield quoteRecord(
+                sprintf('TEST%08d', $row),
+                '2026-09-07T20:40:00.000Z',
+                $row,
+                '4.000000',
+                '6.000000',
+                '5.0000000',
+            );
+        }
+    })();
+    $batchBindingCounts = [];
+
+    DB::connection('package_testing')->listen(
+        function (QueryExecuted $query) use (&$batchBindingCounts): void {
+            if (str_contains($query->sql, 'INSERT INTO') && str_contains($query->sql, 'eix_quotes')) {
+                $batchBindingCounts[] = count($query->bindings);
+            }
+        },
+    );
+
+    expect(app(QuoteServiceInterface::class)->write($records, $importId, 1788759600000))->toBe(2501)
+        ->and($batchBindingCounts)->toBe([22500, 9]);
 });
 
 it('uses source timestamp before row order when quote timestamps tie', function (): void {
@@ -131,6 +171,7 @@ it('compiles a duplicate-key upsert for mysql drivers', function (string $driver
 
     expect($sql)->toContain('ON DUPLICATE KEY UPDATE')
         ->and($sql)->toContain('VALUES(quoted_at)')
+        ->and($sql)->toContain('@eix_newer')
         ->and($sql)->not->toContain('ON CONFLICT');
 })->with(['mysql', 'mariadb']);
 

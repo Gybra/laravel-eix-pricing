@@ -8,14 +8,26 @@ use Gybra\EixPricing\Application\ImportAlreadyRunning;
 use Gybra\EixPricing\Application\ImportOrchestrator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Date;
+use InvalidArgumentException;
 
 final class ImportEixCommand extends Command
 {
-    protected $signature = 'eix:import';
+    protected $signature = 'eix:import {--isins= : Comma-separated ISINs to import}';
 
     protected $description = 'Import EIX pre-trade sources from the lookback window';
 
-    public function handle(ImportOrchestrator $orchestrator): int
+    public function handle(ImportOrchestrator $orchestrator, ProgressReporter $progress): int
+    {
+        $progress->bind(fn (string $message) => $this->line($message));
+
+        try {
+            return $this->import($orchestrator);
+        } finally {
+            $progress->bind(null);
+        }
+    }
+
+    private function import(ImportOrchestrator $orchestrator): int
     {
         if (Date::now()->isWeekend()) {
             $this->info('Skipped: markets are closed.');
@@ -23,10 +35,16 @@ final class ImportEixCommand extends Command
             return self::SUCCESS;
         }
 
+        $isins = $this->option('isins');
+
         try {
-            $results = $orchestrator->run();
+            $results = $orchestrator->run(is_string($isins) && filled($isins) ? $isins : null);
         } catch (ImportAlreadyRunning $exception) {
             $this->warn($exception->getMessage());
+
+            return self::FAILURE;
+        } catch (InvalidArgumentException $exception) {
+            $this->error($exception->getMessage());
 
             return self::FAILURE;
         }
